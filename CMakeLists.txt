@@ -4,7 +4,7 @@ project(NI_PDP)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(NI_PDP main.cpp
-        tests/test_pieces_logic.cpp
+        tests/TestPiecesLogic.cpp
         common/Pieces.h
         common/Board.cpp
         common/Board.h
