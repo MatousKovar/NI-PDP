@@ -7,7 +7,6 @@
 
 #include <vector>
 
-// Jednoduchá struktura bez virtuálních metod pro maximální rychlost
 struct PieceVariant {
     char type;    // T or L
     int dx[3];    // X-ové offsety zbylých 3 bloků vůči kotevnímu bodu (0,0)
