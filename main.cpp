@@ -8,7 +8,7 @@ int main() {
     try {
         Board board;
 
-        board.loadFromFile("data/mapb6_6c.txt");
+        board.loadFromFile("../data/mapb6_6c.txt");
 
         std::cout << "Mapa uspesne nactena!" << std::endl;
         std::cout << "Rozmery: " << board.getWidth() << "x" << board.getHeight() << std::endl;
