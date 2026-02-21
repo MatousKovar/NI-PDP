@@ -81,6 +81,7 @@ void Board::placePiece(int idx, const PieceVariant& piece, int piece_id) {
         state[n_idx] = piece_id;
         if (values[n_idx] > 0) remaining_pos_sum -= values[n_idx];
     }
+    piece_types.push_back(piece.type);
 }
 
 void Board::removePiece(int idx, const PieceVariant& piece) {
@@ -100,6 +101,7 @@ void Board::removePiece(int idx, const PieceVariant& piece) {
         state[n_idx] = 0;
         if (values[n_idx] > 0) remaining_pos_sum += values[n_idx];
     }
+    piece_types.pop_back();
 }
 
 // Logika pro "úmyslné vynechání" políčka
@@ -170,7 +172,7 @@ void Board::printSolution() const {
             } else if (cell_state > 0) {
                 // Políčko je pokryté quatrominem.
                 // Zde vypíšeme ID quatromina.
-                std::cout << std::setw(3) << "Q" << cell_state << " ";
+                std::cout << std::setw(3) << piece_types[cell_state - 1] << cell_state << " ";
             } else {
                 // Nerozhodnutá políčka by ve finálním řešení neměla být
                 std::cout << std::setw(4) << "0" << " ";
