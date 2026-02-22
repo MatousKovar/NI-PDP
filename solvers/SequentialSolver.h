@@ -20,9 +20,11 @@ private:
     void solveDFS(Board& board, int start_idx, int piece_id);
 
 public:
+    int getBestCost() const { return best_cost; }
+    Board getBestBoard() const { return best_board; }
     SequentialSolver() : best_cost(-1) {}
 
     // Hlavní metoda, kterou zavoláte z mainu
-    void solve(Board initial_board);
+    double solve(Board initial_board);
 };
 #endif //NI_PDP_SEQUENTIALSOLVER_H

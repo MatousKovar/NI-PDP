@@ -165,24 +165,20 @@ void Board::loadFromFile(const std::string& filename) {
     file.close();
 }
 
-void Board::printSolution() const {
-    // Procházíme desku po řádcích a tiskneme maticový popis
+
+void Board::printSolution(std::ostream& os) const {
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             int idx = getIndex(x, y);
             int cell_state = state[idx];
 
             if (cell_state > 0) {
-                // Políčko je pokryté quatrominem.
-                // Vypíšeme typ a ID quatromina (např. T1, L2).
-                std::cout << std::setw(3) << piece_types[cell_state - 1] << cell_state << " ";
+                os << std::setw(3) << piece_types[cell_state - 1] << cell_state << " ";
             } else {
-                // Políčko je nepokryté (ať už úmyslně -1, nebo zatím nerozhodnuté 0).
-                // Vypíšeme jeho bodové ohodnocení z mapy.
-                std::cout << std::setw(4) << values[idx] << " ";
+                os << std::setw(4) << values[idx] << " ";
             }
         }
-        std::cout << "\n";
+        os << "\n";
     }
-    std::cout << "Cena pokryti: " << current_cost << "\n";
+    os << "Cena pokryti: " << current_cost << "\n";
 }

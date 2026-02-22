@@ -66,28 +66,14 @@ void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
     }
 }
 
-void SequentialSolver::solve(Board initial_board) {
-    std::cout << "--- Spoustim SequentialSolver (BB-DFS) ---\n";
-
+double SequentialSolver::solve(Board initial_board) {
     best_cost = -1;
-    best_board = initial_board; // Pojistka
+    best_board = initial_board;
 
-    // Měření času přesně podle doporučení
     auto start_time = std::chrono::high_resolution_clock::now();
-
-    // Spuštění rekurze (hledáme od indexu 0, první dílek má ID 1)
     solveDFS(initial_board, 0, 1);
-
     auto end_time = std::chrono::high_resolution_clock::now();
+
     std::chrono::duration<double> elapsed = end_time - start_time;
-
-    std::cout << "Vypocet dokoncen!\n";
-    std::cout << "Cas behu sekvencniho algoritmu: " << elapsed.count() << " s\n\n";
-
-    std::cout << "Nejlepsi nalezene reseni:\n";
-    if (best_cost != -1) {
-        best_board.printSolution();
-    } else {
-        std::cout << "Zadne platne reseni nebylo nalezeno.\n";
-    }
+    return elapsed.count(); // Vracíme naměřený čas
 }

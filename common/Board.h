@@ -73,7 +73,7 @@ public:
     void unmarkAsEmpty(int idx);
 
     // Pro tisk výsledku
-    void printSolution() const;
+    void printSolution(std::ostream& os = std::cout) const;
 };
 
 
