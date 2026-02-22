@@ -16,6 +16,7 @@ int main() {
         // 2. Načtení mapy
         Board board;
         board.loadFromFile("../data/mapb6_6c.txt");
+        board.printSolution();
 
         std::cout << "Mapa uspesne nactena!\n";
         std::cout << "Rozmery: " << board.getWidth() << "x" << board.getHeight() << "\n";
