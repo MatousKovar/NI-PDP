@@ -39,7 +39,13 @@ private:
         assert(board.canPlacePiece(1, Pieces::VARIANTS[0]) == false);
         assert(board.canPlacePiece(2, Pieces::VARIANTS[0]) == false);
 
-        // board.placePiece(2, Pieces::VARIANTS[0], 2);
+
+        assert(board.canPlacePiece(3, Pieces::VARIANTS[2]) == true);
+        assert(board.canPlacePiece(2, Pieces::VARIANTS[4]) == false);
+        assert(board.canPlacePiece(3, Pieces::VARIANTS[7]) == false);
+
+
+
         board.printSolution();
 
         board.removePiece(0, Pieces::VARIANTS[0]);
