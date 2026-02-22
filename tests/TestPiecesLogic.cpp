@@ -33,11 +33,14 @@ private:
 
         assert(board.canPlacePiece(0, Pieces::VARIANTS[0]) == true);
         board.placePiece(0, Pieces::VARIANTS[0], 1);
+
         assert(board.getTheoreticalMaxPossibleCost() == 240);
-        board.printSolution();
         assert(board.canPlacePiece(0, Pieces::VARIANTS[0]) == false);
         assert(board.canPlacePiece(1, Pieces::VARIANTS[0]) == false);
         assert(board.canPlacePiece(2, Pieces::VARIANTS[0]) == false);
+
+        // board.placePiece(2, Pieces::VARIANTS[0], 2);
+        board.printSolution();
 
         board.removePiece(0, Pieces::VARIANTS[0]);
 

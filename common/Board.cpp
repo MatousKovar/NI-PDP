@@ -52,6 +52,10 @@ bool Board::canPlacePiece(int idx, const PieceVariant& piece) const {
     int x = idx % width;
     int y = idx / width;
 
+    // kontrola kotevniho bodu
+    if (state[idx] != 0) return false;
+
+    //kontrola ostatnich bodu
     for (int i = 0; i < 3; ++i) {
         int nx = x + piece.dx[i];
         int ny = y + piece.dy[i];
