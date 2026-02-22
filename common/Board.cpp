@@ -14,7 +14,8 @@ Board::~Board() {
 
 Board::Board(const Board& other) : width(other.width), height(other.height), size(other.size),
                                    current_cost(other.current_cost), positive_sum(other.positive_sum),
-                                   remaining_pos_sum(other.remaining_pos_sum) {
+                                   remaining_pos_sum(other.remaining_pos_sum),
+                                   piece_types(other.piece_types) {
     values = new int[size];
     state = new int[size];
     for (int i = 0; i < size; ++i) {
@@ -34,9 +35,10 @@ Board& Board::operator=(Board other) {
     std::swap(values, other.values);
     std::swap(state, other.state);
 
+    std::swap(piece_types, other.piece_types);
+
     return *this;
 }
-
 // Inicializace desky (představte si zde logiku načtení ze souboru)
 // Při načítání nezapomeňte sečíst všechny kladné hodnoty do positive_sum a remaining_pos_sum!
 int Board::getNextFreeCell(int start_idx) const {
@@ -166,20 +168,17 @@ void Board::printSolution() const {
             int idx = getIndex(x, y);
             int cell_state = state[idx];
 
-            if (cell_state == -1) {
-                // Políčko je úmyslně nepokryté, vypíšeme jeho ohodnocení
-                std::cout << std::setw(4) << values[idx] << " ";
-            } else if (cell_state > 0) {
+            if (cell_state > 0) {
                 // Políčko je pokryté quatrominem.
-                // Zde vypíšeme ID quatromina.
+                // Vypíšeme typ a ID quatromina (např. T1, L2).
                 std::cout << std::setw(3) << piece_types[cell_state - 1] << cell_state << " ";
             } else {
-                // Nerozhodnutá políčka by ve finálním řešení neměla být
-                std::cout << std::setw(4) << "0" << " ";
+                // Políčko je nepokryté (ať už úmyslně -1, nebo zatím nerozhodnuté 0).
+                // Vypíšeme jeho bodové ohodnocení z mapy.
+                std::cout << std::setw(4) << values[idx] << " ";
             }
         }
         std::cout << "\n";
     }
     std::cout << "Cena pokryti: " << current_cost << "\n";
 }
-

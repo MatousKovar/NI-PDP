@@ -34,7 +34,7 @@ private:
         assert(board.canPlacePiece(0, Pieces::VARIANTS[0]) == true);
         board.placePiece(0, Pieces::VARIANTS[0], 1);
         assert(board.getTheoreticalMaxPossibleCost() == 240);
-
+        board.printSolution();
         assert(board.canPlacePiece(0, Pieces::VARIANTS[0]) == false);
         assert(board.canPlacePiece(1, Pieces::VARIANTS[0]) == false);
         assert(board.canPlacePiece(2, Pieces::VARIANTS[0]) == false);
@@ -43,7 +43,7 @@ private:
 
         assert(board.canPlacePiece(2, Pieces::VARIANTS[0]) == true);
         assert(board.getTheoreticalMaxPossibleCost() == 280);
-
+        // board.printSolution();
         std::cout << "  [OK] test_placement_and_removal proslo.\n";
     }
 };
