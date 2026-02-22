@@ -2,14 +2,28 @@
 #include <exception>
 #include "common/Board.h"
 #include "tests/TestPiecesLogic.cpp"
+#include "solvers/SequentialSolver.h"
+#include "solvers/SequentialSolver.h"
 
 int main() {
     std::cout << "=== NI-PDP: SQX (Skladani quatromin s maximem) ===\n";
 
     try {
-        // Založíme instanci testovací třídy a spustíme testy
+        // 1. Otestujeme logiku (lze zakomentovat při měření velkých map)
         TestPiecesLogic tests;
         tests.runAllTests();
+
+        // 2. Načtení mapy
+        Board board;
+        board.loadFromFile("../data/mapb6_6c.txt");
+
+        std::cout << "Mapa uspesne nactena!\n";
+        std::cout << "Rozmery: " << board.getWidth() << "x" << board.getHeight() << "\n";
+        std::cout << "Trivialni horni mez: " << board.getTrivialUpperBound() << "\n\n";
+
+        // 3. Spuštění sekvenčního solveru
+        SequentialSolver seq_solver;
+        seq_solver.solve(board);
 
     } catch (const std::exception& e) {
         std::cerr << "Kriticka chyba: " << e.what() << std::endl;
@@ -17,4 +31,4 @@ int main() {
     }
 
     return 0;
-}    // TIP See CLion help at <a href="https://www.jetbrains.com/help/clion/">jetbrains.com/help/clion/</a>. Also, you can try interactive lessons for CLion by selecting 'Help | Learn IDE Features' from the main menu.
+}

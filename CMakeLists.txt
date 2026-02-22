@@ -9,4 +9,6 @@ add_executable(NI_PDP main.cpp
         common/Board.cpp
         common/Board.h
         common/Pieces.cpp
+        solvers/SequentialSolver.cpp
+        solvers/SequentialSolver.h
 )

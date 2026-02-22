@@ -51,6 +51,8 @@ public:
 
     // Gettery pro základní rozměry a limity
     int getWidth() const { return width; }
+    // Vrátí bodovou hodnotu políčka na daném indexu
+    int getCellValue(int idx) const { return values[idx]; }
     int getHeight() const { return height; }
     int getSize() const { return size; }
     int getCurrentCost() const { return current_cost; }

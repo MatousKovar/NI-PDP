@@ -63,8 +63,6 @@ private:
 
         board.placePiece(0, Pieces::VARIANTS[0], 1);
 
-        board.printSolution();
-
 
         std::cout << "  [OK] test_evaluation_logic proslo.\n";
     }
