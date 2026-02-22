@@ -12,6 +12,7 @@ public:
         std::cout << "--- Spoustim sanity testy ---\n";
         test_loadFromFile();
         test_placement_and_removal();
+        test_evaluation_logic();
         std::cout << "--- Vsechny testy OK ---\n\n";
     }
 
@@ -45,14 +46,26 @@ private:
         assert(board.canPlacePiece(3, Pieces::VARIANTS[7]) == false);
 
 
-
-        board.printSolution();
-
         board.removePiece(0, Pieces::VARIANTS[0]);
 
         assert(board.canPlacePiece(2, Pieces::VARIANTS[0]) == true);
         assert(board.getTheoreticalMaxPossibleCost() == 280);
-        // board.printSolution();
         std::cout << "  [OK] test_placement_and_removal proslo.\n";
+    }
+    static void test_evaluation_logic() {
+        Board board;
+        board.loadFromFile("../data/mapb6_6c.txt");
+
+        assert(board.getCurrentCost() == 0);
+
+        board.markAsEmpty(0);
+        assert(board.getCurrentCost() == 10);
+
+        board.placePiece(0, Pieces::VARIANTS[0], 1);
+
+        board.printSolution();
+
+
+        std::cout << "  [OK] test_evaluation_logic proslo.\n";
     }
 };

@@ -56,7 +56,7 @@ public:
     int getCurrentCost() const { return current_cost; }
     int getTrivialUpperBound() const { return positive_sum; }
 
-    // Pro ořezávání: current_cost + remaining_pos_sum
+    // Pro ořezávání: current_cost + remaining_pos_sum, kdyby se podarilo zakryt vsechny zaporne a zadne kladne
     int getTheoreticalMaxPossibleCost() const;
 
     // Najde nejbližší nerozhodnuté políčko (index 0 až size-1)
