@@ -134,7 +134,7 @@ void Board::loadFromFile(const std::string& filename) {
     }
 
     // Načtení rozměrů desky
-    file >> width >> height;
+    file >> height >> width;
     size = width * height;
 
     // Bezpečnostní dealokace (pokud by se metoda volala vícekrát na stejném objektu)

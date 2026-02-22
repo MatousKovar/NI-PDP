@@ -5,7 +5,6 @@
 #include "SequentialSolver.h"
 
 void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
-    // 1. Předčasné ukončení (našli jsme absolutní utopii)
     if (best_cost == board.getTrivialUpperBound()) {
         return;
     }
