@@ -74,5 +74,5 @@ double SequentialSolver::solve(Board initial_board) {
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> elapsed = end_time - start_time;
-    return elapsed.count(); 
+    return elapsed.count();
 }
