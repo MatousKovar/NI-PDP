@@ -9,12 +9,12 @@ void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
         return;
     }
 
-    // 2. Ořezávání neperspektivních větví (Branch and Bound)
+    // Ořezávání neperspektivních větví - pokud bych zakryl vsechny zaporne, tak stejne nedostanu lepsi reseni nez jsem uz nasel
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) {
         return;
     }
 
-    // 3. Nalezení dalšího volného políčka k rozhodnutí
+    // Nalezení dalšího volného políčka k rozhodnutí - je volne a nema byt preskoceno
     int cell = board.getNextFreeCell(start_idx);
 
     // Konec desky - zkontrolujeme, zda máme nový rekord
@@ -26,11 +26,11 @@ void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
         return;
     }
 
-    // --- 4. VĚTVENÍ S HEURISTIKOU ---
+    // Branching
     int cell_val = board.getCellValue(cell);
 
+    // Hodnota na volnem policku je kladna - chceme idealne nezakryt -> ten stav navstivime prvni
     if (cell_val > 0) {
-        // HEURISTIKA A: Kladné políčko chceme primárně vynechat (zvedá to skóre)
         board.markAsEmpty(cell);
         solveDFS(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
@@ -38,7 +38,7 @@ void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
         // Pokud jsme vynecháním už dosáhli maxima, nemusíme zkoušet pokládat dílky
         if (best_cost == board.getTrivialUpperBound()) return;
 
-        // Následně zkusíme všechny varianty quatromin
+        // Následně zkusíme všechny varianty dilku
         for (int i = 0; i < 12; ++i) {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i])) {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
@@ -47,7 +47,7 @@ void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
             }
         }
     } else {
-        // HEURISTIKA B: Záporné políčko chceme primárně zakrýt (aby nestrhlo skóre)
+        // v pripade ze je policko se zapornou hodnotou, tak je nejlepsi moznost ze bude zakryto -> to zkousime prvni
         for (int i = 0; i < 12; ++i) {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i])) {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
@@ -74,5 +74,5 @@ double SequentialSolver::solve(Board initial_board) {
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> elapsed = end_time - start_time;
-    return elapsed.count(); // Vracíme naměřený čas
+    return elapsed.count(); 
 }
