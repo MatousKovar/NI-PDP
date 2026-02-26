@@ -16,10 +16,12 @@ private:
     int best_cost;
     Board best_board;
 
+
     // Samotná rekurzivní BB-DFS funkce
     void solveDFS(Board& board, int start_idx, int piece_id);
 
 public:
+    int calls_counter;
     int getBestCost() const { return best_cost; }
     Board getBestBoard() const { return best_board; }
     SequentialSolver() : best_cost(-1) {}

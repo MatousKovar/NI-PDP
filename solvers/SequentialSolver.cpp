@@ -5,6 +5,7 @@
 #include "SequentialSolver.h"
 
 void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
+    calls_counter += 1;
     if (best_cost == board.getTrivialUpperBound()) {
         return;
     }
@@ -42,7 +43,7 @@ void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
         for (int i = 0; i < 12; ++i) {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i])) {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFS(board, cell + 1, piece_id + 1);
+                solveDFS(board, cell + 1, piece_id);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -51,7 +52,7 @@ void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
         for (int i = 0; i < 12; ++i) {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i])) {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFS(board, cell + 1, piece_id + 1);
+                solveDFS(board, cell + 1, piece_id);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -68,6 +69,7 @@ void SequentialSolver::solveDFS(Board &board, int start_idx, int piece_id) {
 double SequentialSolver::solve(Board initial_board) {
     best_cost = -1;
     best_board = initial_board;
+    calls_counter = 0;
 
     auto start_time = std::chrono::high_resolution_clock::now();
     solveDFS(initial_board, 0, 1);
