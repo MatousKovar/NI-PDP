@@ -28,5 +28,7 @@ public:
 
     // Hlavní metoda, kterou zavoláte z mainu
     double solve(Board initial_board);
+
+    friend class OmpSolver;
 };
 #endif //NI_PDP_SEQUENTIALSOLVER_H
