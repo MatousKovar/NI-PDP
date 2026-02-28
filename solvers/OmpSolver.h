@@ -16,15 +16,16 @@ struct SearchState {
 
 class OmpSolver {
     public:
-    OmpSolver(const Board & originalBoard, int n_threads) : n_threads(0), global_best(0), originalBoard(originalBoard) {} ;
+    OmpSolver(int n_threads, int z = 40) : n_threads(0), global_best(0), z(z) {} ;
 
     double solve(Board initialBoard);
 private:
     int global_best;
     int n_threads;
-    Board originalBoard;
+    int z;
+    Board best_board;
 
-    std::vector<SearchState> generateStartingBoards(int z = 40);
+    std::vector<SearchState> generateStartingBoards(const Board& original_board);
 };
 
 #endif //NI_PDP_OMPSOLVER_H

@@ -24,7 +24,7 @@ public:
     int calls_counter;
     int getBestCost() const { return best_cost; }
     Board getBestBoard() const { return best_board; }
-    SequentialSolver() : best_cost(-1) {}
+    SequentialSolver() : best_cost(-1), calls_counter(0) {}
 
     // Hlavní metoda, kterou zavoláte z mainu
     double solve(Board initial_board);
