@@ -16,16 +16,18 @@ struct SearchState {
 
 class OmpSolver {
 public:
-    OmpSolver(int n_threads, int z = 40) : n_threads(0), global_best(0), z(z) {} ;
-
-    double solve(const Board& initialBoard);
-private:
     int global_best;
     int n_threads;
     int z;
     int calls_counter = 0;
     int best_cost;
     Board best_board;
+
+    OmpSolver(int n_threads, int z = 40) : n_threads(0), global_best(0), z(z) {} ;
+
+    double solve(const Board& initialBoard);
+private:
+
 
     void solveDFS(Board& board, int start_idx, int piece_id);
     std::vector<SearchState> generateStartingBoards(const Board& original_board) const;

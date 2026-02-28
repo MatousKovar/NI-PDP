@@ -55,14 +55,14 @@ int main(int argc, char *argv[]) {
             best_board = solver.getBestBoard();
             calls_counter = solver.calls_counter;
         }
-        // else if (solver_type == "omp")
-        // {
-        //     OmpSolver solver; // Ujisti se, že máš takovou třídu vytvořenou
-        //     time_taken = solver.solve(board);
-        //     best_cost = solver.getBestCost();
-        //     best_board = solver.getBestBoard();
-        //     calls_counter = solver.calls_counter;
-        // }
+        else if (solver_type == "omp")
+        {
+            OmpSolver solver(4); // Ujisti se, že máš takovou třídu vytvořenou
+            time_taken = solver.solve(board);
+            best_cost = solver.best_cost;
+            best_board = solver.best_board;
+            calls_counter = solver.calls_counter;
+        }
         // else if (solver_type == "mpi" || solver_type == "mvi")
         // {
         //     MpiSolver solver; // Ujisti se, že máš takovou třídu vytvořenou

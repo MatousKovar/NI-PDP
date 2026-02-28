@@ -5,10 +5,36 @@
 #include "OmpSolver.h"
 
 double OmpSolver::solve(const Board &initialBoard) {
+    best_cost = -1;
+    best_board = initialBoard;
+    calls_counter = 0;
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     std::vector<SearchState> queue = generateStartingBoards(initialBoard);
+
+    #pragma omp parallel for schedule(dynamic)
+    for (int i = 0; i < queue.size(); ++i)
+    {
+        Board local_board = queue[i].board;
+        int local_start = queue[i].start_idx;
+        int local_piece = queue[i].start_piece_id;
+
+        // Spustíme DFS na této lokální kopii
+        solveDFS(local_board, local_start, local_piece);
+    }
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
+
+    return elapsed.count();
 }
 
 //modifikovana verze z sekvencniho
+/**
+ * @param board Kopie desky
+ * @param start_idx startovaci pozice na desce, kam zkousim pokladat
+ * @param piece_id id pro pojmenovani polozeneho dilku
+ */
 void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
 #pragma omp atomic
     calls_counter++;
@@ -19,9 +45,7 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
 
     // Ořezávání neperspektivních větví - pokud bych zakryl vsechny zaporne, tak stejne nedostanu lepsi reseni nez jsem uz nasel
     if (board.getTheoreticalMaxPossibleCost() <= best_cost)
-    {
         return;
-    }
 
     // Nalezení dalšího volného políčka k rozhodnutí - je volne a nema byt preskoceno
     int cell = board.getNextFreeCell(start_idx);
@@ -88,8 +112,11 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
     }
 }
 
-
-
+/**
+ *
+ * @param originalBoard kopie originalni desky
+ * @return vraci vektor obsahujici SearchState - trojice (deska, idx na kterem zacinam hledat, a id posledniho polozeneho dilku)
+ */
 std::vector<SearchState> OmpSolver::generateStartingBoards(const Board &originalBoard) const {
     std::vector<SearchState> queue;
     int limit = n_threads * z;
