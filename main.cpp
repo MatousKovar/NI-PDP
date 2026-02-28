@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
-    else
+    else if (solver_type != "sequential")
     {
         std::cerr << "Chyba: Neznamy typ solveru. Povolene hodnoty: sequential, omp, mpi.\n";
         return 1;

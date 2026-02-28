@@ -41,8 +41,6 @@ std::vector<int> OmpSolver::sortPieces(Board &board, int idx, int piece_id)
             moves.push_back({board.getCurrentCost(), i});
             board.removePiece(idx, Pieces::VARIANTS[i]);
         }
-        else
-            moves.push_back({-1, i});
     }
     board.markAsEmpty(idx);
     moves.push_back({board.getCurrentCost(), -1});
