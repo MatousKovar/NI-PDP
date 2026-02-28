@@ -29,7 +29,7 @@ public:
 private:
 
     std::vector<int> sortPieces(Board& board, int idx, int piece_id);
-    void solveDFS(Board &board, int start_idx, int piece_id);
+    void solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls);
     std::vector<SearchState> generateStartingBoards(const Board& original_board) const;
 };
 

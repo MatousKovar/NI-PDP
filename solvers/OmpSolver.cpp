@@ -20,9 +20,12 @@ double OmpSolver::solve(const Board &initialBoard) {
         Board local_board = queue[i].board;
         int local_start = queue[i].start_idx;
         int local_piece = queue[i].start_piece_id;
+        long long local_calls = 0;
 
-        // Spustíme DFS na této lokální kopii
-        solveDFS(local_board, local_start, local_piece);
+        solveDFS(local_board, local_start, local_piece,local_calls);
+
+        #pragma omp atomic
+        calls_counter += local_calls;
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -37,11 +40,10 @@ double OmpSolver::solve(const Board &initialBoard) {
  * @param board Kopie desky
  * @param start_idx startovaci pozice na desce, kam zkousim pokladat
  * @param piece_id id pro pojmenovani polozeneho dilku
+ * @param local_calls
  */
-void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
-    #pragma omp atomic
-    calls_counter++;
-
+void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls) {
+    local_calls++;
 
     //nejlepsi reseni je absolutne nejlepsi - trivialni mez
     if (best_cost == board.getTrivialUpperBound())
@@ -50,7 +52,7 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
     // Ořezávání neperspektivních větví - pokud bych zakryl vsechny zaporne, tak stejne nedostanu lepsi reseni nez jsem uz nasel
     if (board.getTheoreticalMaxPossibleCost() <= best_cost)
         return;
-    
+
     // Nalezení dalšího volného políčka k rozhodnutí - je volne a nema byt preskoceno
     int cell = board.getNextFreeCell(start_idx);
 
@@ -78,7 +80,7 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
     if (cell_val > 0)
     {
         board.markAsEmpty(cell);
-        solveDFS(board, cell + 1, piece_id);
+        solveDFS(board, cell + 1, piece_id, local_calls);
         board.unmarkAsEmpty(cell);
 
         // Pokud jsme vynecháním už dosáhli maxima, nemusíme zkoušet pokládat dílky
@@ -91,7 +93,7 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFS(board, cell + 1, piece_id);
+                solveDFS(board, cell + 1, piece_id, local_calls);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -105,7 +107,7 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFS(board, cell + 1, piece_id + 1);
+                solveDFS(board, cell + 1, piece_id + 1, local_calls);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -115,7 +117,7 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
 
         // Až jako poslední zoufalou možnost zkusíme záporné políčko úmyslně vynechat
         board.markAsEmpty(cell);
-        solveDFS(board, cell + 1, piece_id);
+        solveDFS(board, cell + 1, piece_id, local_calls);
         board.unmarkAsEmpty(cell);
     }
 }
