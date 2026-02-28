@@ -10,26 +10,58 @@
 // #include "solvers/MpiSolver.h"
 
 int main(int argc, char *argv[]) {
-    // 1. Kontrola argumentů příkazové řádky
-    if (argc != 3)
+    //kontrola poctu argumentu
+    if (argc < 3 || argc > 4)
     {
         std::cerr << "Chyba: Spatny pocet argumentu!\n";
-        std::cerr << "Pouziti: " << argv[0] << " <cesta_k_souboru_s_mapou> <typ_solveru (sequential/omp/mpi)>\n";
+        std::cerr << "Pouziti (sekvencni): " << argv[0] << " <cesta_k_mape> sequential\n";
+        std::cerr << "Pouziti (paralelni): " << argv[0] << " <cesta_k_mape> <omp/mpi> <z_konstanta>\n";
         return 1;
     }
 
+
+    // ------------------ Z parametr -------------------
+    // je nutny pro omp a mpi solver
     std::string filepath = argv[1];
     std::string solver_type = argv[2];
+    int z_constant = 0;
 
+    if (solver_type == "omp" || solver_type == "mpi")
+    {
+        if (argc != 4)
+        {
+            std::cerr << "Chyba: Pro solver typu '" << solver_type <<
+                    "' musite zadat konstantu 'z' jako 4. argument!\n";
+            return 1;
+        }
+        try
+        {
+            z_constant = std::stoi(argv[3]);
+            if (z_constant <= 0) throw std::invalid_argument("z musi byt kladne");
+        }
+        catch (...)
+        {
+            std::cerr << "Chyba: Konstanta 'z' musi byt kladne cele cislo!\n";
+            return 1;
+        }
+    }
+    else
+    {
+        std::cerr << "Chyba: Neznamy typ solveru. Povolene hodnoty: sequential, omp, mpi.\n";
+        return 1;
+    }
+
+    //------------------------------  MAPA --------------------
     std::cout << "======\n";
     std::cout << "Zpracovavam mapu: " << filepath << " se solverem: " << solver_type << " ..." << std::flush;
 
-    std::ofstream outfile("results.txt", std::ios::app);
+    std::ofstream outfile("../results.txt", std::ios::app);
     if (!outfile.is_open())
     {
         std::cerr << "\nKriticka chyba: Nelze otevrit/vytvorit soubor results.txt!\n";
         return 1;
     }
+
 
     outfile << "========================================\n";
     outfile << "Mapa: " << filepath << " | Solver: " << solver_type << "\n";
@@ -46,7 +78,7 @@ int main(int argc, char *argv[]) {
         long long calls_counter = 0;
         Board best_board;
 
-        // 4. Rozhodovací logika pro výběr správného solveru
+
         if (solver_type == "sequential")
         {
             SequentialSolver solver;
@@ -71,12 +103,11 @@ int main(int argc, char *argv[]) {
         //     best_board = solver.getBestBoard();
         //     calls_counter = solver.calls_counter;
         // }
-        else
-        {
-            throw std::invalid_argument("Neznamy typ solveru. Povolene hodnoty: sequential, omp, mpi.");
-        }
 
-        // 5. Zápis výsledků
+
+
+
+        // ---------------------_VYSLEDKY---------------------
         outfile << "Cas behu: " << time_taken << " s\n";
         outfile << "Nejlepsi cena (cost): " << best_cost << "\n";
         outfile << "Pocet volani: " << calls_counter << "\n";
