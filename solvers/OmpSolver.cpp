@@ -12,8 +12,9 @@ double OmpSolver::solve(const Board &initialBoard) {
     auto start_time = std::chrono::high_resolution_clock::now();
 
     std::vector<SearchState> queue = generateStartingBoards(initialBoard);
-    std::cout<< "BFS finished" <<std::endl;
-    #pragma omp parallel for schedule(dynamic)
+    std::cout << "BFS finished" << std::endl;
+
+    #pragma omp parallel for schedule(dynamic,1)
     for (int i = 0; i < queue.size(); ++i)
     {
         Board local_board = queue[i].board;
@@ -30,35 +31,6 @@ double OmpSolver::solve(const Board &initialBoard) {
     return elapsed.count();
 }
 
-std::vector<int> OmpSolver::sortPieces(Board &board, int idx, int piece_id)
-{
-    std::vector<std::pair<int, int>> moves;
-    for (int i = 0; i < 12; ++i)
-    {
-        if (board.canPlacePiece(idx, Pieces::VARIANTS[i]))
-        {
-            board.placePiece(idx,Pieces::VARIANTS[i], piece_id);
-            moves.push_back({board.getCurrentCost(), i});
-            board.removePiece(idx, Pieces::VARIANTS[i]);
-        }
-    }
-    board.markAsEmpty(idx);
-    moves.push_back({board.getCurrentCost(), -1});
-    board.unmarkAsEmpty(idx);
-
-    std::sort(moves.begin(), moves.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-        return a.first > b.first;
-    });
-
-    // 4. Přepíšeme pouze seřazené indexy tahů do výsledného vektoru
-    std::vector<int> pieces_order;
-    pieces_order.reserve(moves.size());
-    for (const auto& move : moves) {
-        pieces_order.push_back(move.second);
-    }
-
-    return pieces_order;
-}
 
 //modifikovana verze z sekvencniho
 /**
@@ -70,6 +42,7 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
     #pragma omp atomic
     calls_counter++;
 
+
     //nejlepsi reseni je absolutne nejlepsi - trivialni mez
     if (best_cost == board.getTrivialUpperBound())
         return;
@@ -77,11 +50,12 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
     // Ořezávání neperspektivních větví - pokud bych zakryl vsechny zaporne, tak stejne nedostanu lepsi reseni nez jsem uz nasel
     if (board.getTheoreticalMaxPossibleCost() <= best_cost)
         return;
-
+    
     // Nalezení dalšího volného políčka k rozhodnutí - je volne a nema byt preskoceno
     int cell = board.getNextFreeCell(start_idx);
 
     // Konec desky - zkontrolujeme, zda máme nový rekord
+
     if (cell == -1)
     {
         if (board.getCurrentCost() > best_cost)
@@ -93,26 +67,59 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id) {
                     best_cost = board.getCurrentCost();
                     best_board = board;
                 }
-
             }
         }
         return;
     }
 
-    std::vector<int> pieces_order = OmpSolver::sortPieces(board, cell, piece_id);
+    int cell_val = board.getCellValue(cell);
 
-    for (int move : pieces_order) {
-        if (move == -1) {
-            board.markAsEmpty(cell);
-            solveDFS(board, cell + 1, piece_id);
-            board.unmarkAsEmpty(cell);
-        } else {
-            board.placePiece(cell, Pieces::VARIANTS[move], piece_id);
-            solveDFS(board, cell + 1, piece_id + 1);
-            board.removePiece(cell, Pieces::VARIANTS[move]);
+    // Hodnota na volnem policku je kladna - chceme idealne nezakryt -> ten stav navstivime prvni
+    if (cell_val > 0)
+    {
+        board.markAsEmpty(cell);
+        solveDFS(board, cell + 1, piece_id);
+        board.unmarkAsEmpty(cell);
+
+        // Pokud jsme vynecháním už dosáhli maxima, nemusíme zkoušet pokládat dílky
+        if (best_cost == board.getTrivialUpperBound()) return;
+
+        // Následně zkusíme všechny varianty dilku
+        for (int i = 0; i < 12; ++i)
+
+        {
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
+            {
+                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
+                solveDFS(board, cell + 1, piece_id);
+                board.removePiece(cell, Pieces::VARIANTS[i]);
+            }
         }
     }
+
+    else
+    {
+        // v pripade ze je policko se zapornou hodnotou, tak je nejlepsi moznost ze bude zakryto -> to zkousime prvni
+        for (int i = 0; i < 12; ++i)
+        {
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
+            {
+                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
+                solveDFS(board, cell + 1, piece_id + 1);
+                board.removePiece(cell, Pieces::VARIANTS[i]);
+            }
+        }
+
+        if (best_cost == board.getTrivialUpperBound())
+            return;
+
+        // Až jako poslední zoufalou možnost zkusíme záporné políčko úmyslně vynechat
+        board.markAsEmpty(cell);
+        solveDFS(board, cell + 1, piece_id);
+        board.unmarkAsEmpty(cell);
+    }
 }
+
 
 /**
  *

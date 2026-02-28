@@ -20,7 +20,7 @@ public:
     int n_threads;
     int z;
     int calls_counter = 0;
-    int best_cost;
+    volatile int best_cost;
     Board best_board;
 
     OmpSolver(int n_threads, int z = 40) : n_threads(4), global_best(0), z(z) {} ;
@@ -29,7 +29,7 @@ public:
 private:
 
     std::vector<int> sortPieces(Board& board, int idx, int piece_id);
-    void solveDFS(Board& board, int start_idx, int piece_id);
+    void solveDFS(Board &board, int start_idx, int piece_id);
     std::vector<SearchState> generateStartingBoards(const Board& original_board) const;
 };
 
