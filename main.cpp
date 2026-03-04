@@ -70,8 +70,7 @@ int main(int argc, char *argv[]) {
         std::cout << "======\n";
         std::cout << "Zpracovavam mapu: " << filepath << " se solverem: " << solver_type << " ..." << std::flush;
 
-        std::ofstream outfile("../results.txt", std::ios::app);
-        if (!outfile.is_open())
+        outfile.open("../results.txt", std::ios::app); // <-- Takhle je to správně, jen volání metody        if (!outfile.is_open())
         {
             std::cerr << "\nKriticka chyba: Nelze otevrit/vytvorit soubor results.txt!\n";
             MPI_Finalize();

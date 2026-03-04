@@ -58,6 +58,13 @@ public:
     int getCurrentCost() const { return current_cost; }
     int getTrivialUpperBound() const { return positive_sum; }
 
+    //setters for MPI
+    int getRemainingPosSum() const { return remaining_pos_sum; }
+    void setRemainingPosSum(int sum) { remaining_pos_sum = sum; }
+    void setCurrentCost(int cost) { current_cost = cost; }
+    int getStateAt(int idx) const { return state[idx]; }
+    void setStateAt(int idx, int val) { state[idx] = val; }
+
     // Pro ořezávání: current_cost + remaining_pos_sum, kdyby se podarilo zakryt vsechny zaporne a zadne kladne
     int getTheoreticalMaxPossibleCost() const;
 

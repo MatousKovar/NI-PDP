@@ -27,6 +27,9 @@ public:
 private:
     void solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls, int global_best);
     std::vector<SearchState> generateStartingBoards(const Board& original_board) const;
+
+    static void packState(const SearchState &state, int *buffer);
+    static SearchState unpackState(const int *buffer, const Board &original_board);
 };
 
 

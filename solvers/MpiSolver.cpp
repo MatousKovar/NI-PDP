@@ -78,3 +78,35 @@ std::vector<SearchState> MpiSolver::generateStartingBoards(const Board &original
 
     return startingBoards;
 }
+
+void MpiSolver::packState(const SearchState& state, int* buffer) {
+    buffer[0] = state.start_idx;
+    buffer[1] = state.start_piece_id;
+    buffer[2] = state.board.getCurrentCost();
+    buffer[3] = state.board.getRemainingPosSum();
+
+    // Překopírování stavu desky (toho, co už je reálně položené)
+    int size = state.board.getSize();
+    for (int i = 0; i < size; ++i) {
+        buffer[4 + i] = state.board.getStateAt(i);
+    }
+}
+
+SearchState MpiSolver::unpackState(const int* buffer, const Board& original_board) {
+    SearchState s;
+    // Vytvoříme kopii původní prázdné desky (tím získáme správné values, width, height)
+    s.board = original_board;
+
+    s.start_idx = buffer[0];
+    s.start_piece_id = buffer[1];
+    s.board.setCurrentCost(buffer[2]);
+    s.board.setRemainingPosSum(buffer[3]);
+
+    // Přepíšeme stav desky z přijatého bufferu
+    int size = original_board.getSize();
+    for (int i = 0; i < size; ++i) {
+        s.board.setStateAt(i, buffer[4 + i]);
+    }
+
+    return s;
+}
