@@ -25,10 +25,15 @@ public:
     double solve(const Board& initialBoard);
 
 private:
+    const int TAG_WORK = 1; // master posila slave pokyn at resi
+    const int TAG_END = 2; // master posila pokyn k ukonceni
+    const int TAG_RESULT = 3; // slave posila masterovi vysledky
+
     void solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls, int global_best);
     std::vector<SearchState> generateStartingBoards(const Board& original_board) const;
 
     static void packState(const SearchState &state, int *buffer);
+
     static SearchState unpackState(const int *buffer, const Board &original_board);
 };
 

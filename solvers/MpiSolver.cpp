@@ -5,7 +5,71 @@
 #include "MpiSolver.h"
 
 
-double MpiSolver::solve(const Board &initialBoard) {
+double MpiSolver::solve(const Board &initialBoard)
+{
+    best_cost = -1;
+    best_board = initialBoard;
+    calls_counter = 0;
+
+    //buffer pro posilani dat slave procesum
+    int buffer_size = 4 + initialBoard.getSize();
+    int *buffer = new int[buffer_size];
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    // MASTER PROCESS
+    if (world_rank == 0)
+    {
+        std::vector<SearchState> queue = generateStartingBoards(initialBoard);
+
+        int active_slaves = 0;
+        int next_task = 0;
+
+        // prvotni rozdani prace
+        for (int i = 1; i < world_size && next_task < queue.size(); ++i)
+        {
+            packState(queue[next_task], buffer);
+            MPI_Send(buffer, buffer_size, MPI_INT, i, TAG_WORK, MPI_COMM_WORLD);
+            next_task++;
+            active_slaves++;
+        }
+
+
+        while (active_slaves > 0)
+        {
+            MPI_Status status;
+
+            // cekame na odpoved
+            MPI_Recv(buffer, buffer_size, MPI_INT, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
+
+            int sender = status.MPI_SOURCE;
+
+            // update nejlepsiho reseni logika
+            calls_counter += buffer[1];
+            if (buffer[0] > best_cost)
+            {
+                best_cost = buffer[0];
+
+            }
+
+
+            if (next_task < queue.size())
+            {
+                packState(queue[next_task], buffer);
+                MPI_Send(buffer, buffer_size, MPI_INT, sender, TAG_WORK, MPI_COMM_WORLD);
+                next_task++;
+            }
+            else
+            {
+                MPI_Send(buffer, buffer_size, MPI_INT, sender, TAG_END, MPI_COMM_WORLD);
+                active_slaves--;
+            }
+        }
+    }
+    // SLAVE PROCESS
+    else
+    {
+    }
 
     return 0.0;
 }
@@ -20,7 +84,6 @@ double MpiSolver::solve(const Board &initialBoard) {
  * @param global_best - global best neni globalni promenna, kvuli distribuovane pameti
  */
 void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls, int global_best) {
-
 }
 
 /**
@@ -79,7 +142,12 @@ std::vector<SearchState> MpiSolver::generateStartingBoards(const Board &original
     return startingBoards;
 }
 
-void MpiSolver::packState(const SearchState& state, int* buffer) {
+/**
+ * buffer packs start_idx,
+ * @param state
+ * @param buffer
+ */
+void MpiSolver::packState(const SearchState &state, int *buffer) {
     buffer[0] = state.start_idx;
     buffer[1] = state.start_piece_id;
     buffer[2] = state.board.getCurrentCost();
@@ -87,12 +155,13 @@ void MpiSolver::packState(const SearchState& state, int* buffer) {
 
     // Překopírování stavu desky (toho, co už je reálně položené)
     int size = state.board.getSize();
-    for (int i = 0; i < size; ++i) {
+    for (int i = 0; i < size; ++i)
+    {
         buffer[4 + i] = state.board.getStateAt(i);
     }
 }
 
-SearchState MpiSolver::unpackState(const int* buffer, const Board& original_board) {
+SearchState MpiSolver::unpackState(const int *buffer, const Board &original_board) {
     SearchState s;
     // Vytvoříme kopii původní prázdné desky (tím získáme správné values, width, height)
     s.board = original_board;
@@ -104,9 +173,12 @@ SearchState MpiSolver::unpackState(const int* buffer, const Board& original_boar
 
     // Přepíšeme stav desky z přijatého bufferu
     int size = original_board.getSize();
-    for (int i = 0; i < size; ++i) {
+    for (int i = 0; i < size; ++i)
+    {
         s.board.setStateAt(i, buffer[4 + i]);
     }
 
     return s;
 }
+
+
