@@ -7,7 +7,7 @@
 // Zahrnutí všech solverů (předpokládané názvy tvých hlavičkových souborů)
 #include "solvers/SequentialSolver.h"
 #include "solvers/OmpSolver.h"
-// #include "solvers/MpiSolver.h"
+#include "solvers/MpiSolver.h"
 
 int main(int argc, char *argv[]) {
     //kontrola poctu argumentu
@@ -95,14 +95,14 @@ int main(int argc, char *argv[]) {
             best_board = solver.best_board;
             calls_counter = solver.calls_counter;
         }
-        // else if (solver_type == "mpi" || solver_type == "mvi")
-        // {
-        //     MpiSolver solver; // Ujisti se, že máš takovou třídu vytvořenou
-        //     time_taken = solver.solve(board);
-        //     best_cost = solver.getBestCost();
-        //     best_board = solver.getBestBoard();
-        //     calls_counter = solver.calls_counter;
-        // }
+        else if (solver_type == "mpi")
+        {
+            MpiSolver solver; // Ujisti se, že máš takovou třídu vytvořenou
+            time_taken = solver.solve(board);
+            best_cost = solver.getBestCost();
+            best_board = solver.getBestBoard();
+            calls_counter = solver.calls_counter;
+        }
 
 
 
