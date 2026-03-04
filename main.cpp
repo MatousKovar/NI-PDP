@@ -113,15 +113,24 @@ int main(int argc, char *argv[]) {
         outfile << "Pocet volani: " << calls_counter << "\n";
         outfile << "Vysledna deska:\n";
 
+        std::cout << "Cas behu: " << time_taken << " s\n";
+        std::cout << "Nejlepsi cena (cost): " << best_cost << "\n";
+        std::cout << "Pocet volani: " << calls_counter << "\n";
+        std::cout << "Vysledna deska:\n";
+
+
         if (best_cost != -1)
         {
             best_board.printSolution(outfile);
+            best_board.printSolution(std::cout);
         }
         else
         {
             outfile << "Zadne platne reseni nebylo nalezeno.\n";
+            std::cout << "Zadne platne reseni nebylo nalezeno.\n";
         }
         outfile << "\n";
+        std::cout << "\n";
 
         std::cout << " HOTOVO (" << time_taken << " s)\n";
     }
