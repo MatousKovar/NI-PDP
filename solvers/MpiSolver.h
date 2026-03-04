@@ -7,12 +7,8 @@
 #include <mpi.h>
 #include "../common/Board.h"
 #include "../common/Pieces.h"
+#include "OmpSolver.h"
 
-struct SearchState {
-    Board board;
-    int start_idx;
-    int start_piece_id;
-};
 
 class MpiSolver {
 public:
@@ -20,9 +16,13 @@ public:
     int n_threads;
     int z;
     int calls_counter = 0;
+    int world_rank;
+    int world_size;
     volatile int best_cost;
     Board best_board;
 
+    MpiSolver(int n_threads, int z, int world_rank, int world_size) : n_threads(n_threads), z(z), world_rank(world_rank), world_size(world_size) {};
+    double solve(const Board& initialBoard);
 
 private:
     void solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls, int global_best);

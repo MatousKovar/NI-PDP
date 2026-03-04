@@ -5,6 +5,24 @@
 #include "MpiSolver.h"
 
 
+double MpiSolver::solve(const Board &initialBoard) {
+
+    return 0.0;
+}
+
+
+/**
+ * Spousteno pouze v slave procesech
+ * @param board - deska kterou ma vyresit
+ * @param start_idx index na kterem zacina resit
+ * @param piece_id - piece_id, ktere muze pouzit jako nejnizsi
+ * @param local_calls - pocet volani, ktere agreguje v rekurzi kolikrat se funkce vola
+ * @param global_best - global best neni globalni promenna, kvuli distribuovane pameti
+ */
+void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls, int global_best) {
+
+}
+
 /**
  * stejne jako v Omp solveru
  * @param original_board deska ze zadani
