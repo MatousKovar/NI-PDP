@@ -69,6 +69,33 @@ double MpiSolver::solve(const Board &initialBoard)
     // SLAVE PROCESS
     else
     {
+        long long local_calls = 0;
+
+        while (true) {
+            MPI_Status status;
+
+            // 1. Čekáme na zprávu od Mastera
+            MPI_Recv(buffer, buffer_size, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+            if (status.MPI_TAG == TAG_END)
+                break; // Tímto Slave proces dokončí svou práci a dojde k MPI_Finalize
+
+            // 3. Pokud nám Master poslal práci, jdeme počítat
+            if (status.MPI_TAG == TAG_WORK)
+            {
+                SearchState state = unpackState(buffer, initialBoard);
+
+                local_calls = 0;
+
+                solveDFS(state.board, state.start_idx, state.start_piece_id, local_calls, best_cost);
+
+                long long result[2];
+                result[0] = best_cost;
+                result[1] = local_calls;
+
+                MPI_Send(result, 2, MPI_LONG_LONG, 0, TAG_RESULT, MPI_COMM_WORLD);
+            }
+        }
     }
 
     return 0.0;
