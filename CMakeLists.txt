@@ -27,6 +27,8 @@ add_executable(NI_PDP main.cpp
         solvers/OmpSolver.h
         solvers/MpiSolver.cpp
         solvers/MpiSolver.h
+        solvers/OmpTaskSolver.cpp
+        solvers/OmpTaskSolver.h
 )
 
 # Připojení nalezené knihovny k projektu
