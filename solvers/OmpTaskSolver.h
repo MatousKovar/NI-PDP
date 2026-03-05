@@ -10,17 +10,20 @@
 class OmpTaskSolver {
 private:
     int best_cost;
+    int z;
     Board best_board;
 
 
+    void solveDFSSeq(Board &board, int start_idx, int piece_id, long long &local_calls);
+
     // Samotná rekurzivní BB-DFS funkce
-    void solveDFS(Board& board, int start_idx, int piece_id);
+    void solveDFS(Board board, int start_idx, int piece_id, int& depth);
 
 public:
     int calls_counter;
     int getBestCost() const { return best_cost; }
     Board getBestBoard() const { return best_board; }
-    OmpTaskSolver() : best_cost(-1), calls_counter(0) {}
+    OmpTaskSolver(int z) : best_cost(-1), calls_counter(0), z(z) {}
 
     // Hlavní metoda, kterou zavoláte z mainu
     double solve(Board initial_board);
