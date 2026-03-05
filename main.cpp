@@ -8,6 +8,7 @@
 #include "solvers/SequentialSolver.h"
 #include "solvers/OmpSolver.h"
 #include "solvers/MpiSolver.h"
+#include "solvers/OmpTaskSolver.h"
 #include <mpi.h>
 
 int main(int argc, char *argv[]) {
@@ -33,7 +34,7 @@ int main(int argc, char *argv[]) {
     std::string solver_type = argv[2];
     int z_constant = 0;
 
-    if (solver_type == "omp" || solver_type == "mpi")
+    if (solver_type == "omp" || solver_type == "mpi" || solver_type == "omptask")
     {
         if (argc != 4)
         {
@@ -70,7 +71,8 @@ int main(int argc, char *argv[]) {
         std::cout << "======\n";
         std::cout << "Zpracovavam mapu: " << filepath << " se solverem: " << solver_type << " ..." << std::flush;
 
-        outfile.open("../results.txt", std::ios::app); // <-- Takhle je to správně, jen volání metody        if (!outfile.is_open())
+        outfile.open("../results.txt", std::ios::app); // <-- Takhle je to správně, jen volání metody
+        if (!outfile.is_open())
         {
             std::cerr << "\nKriticka chyba: Nelze otevrit/vytvorit soubor results.txt!\n";
             MPI_Finalize();
@@ -109,6 +111,17 @@ int main(int argc, char *argv[]) {
             if (world_rank == 0)
             {
                 OmpSolver solver(4, z_constant);
+                time_taken = solver.solve(board);
+                best_cost = solver.best_cost;
+                best_board = solver.best_board;
+                calls_counter = solver.calls_counter;
+            }
+        }
+        else if (solver_type == "omptask")
+        {
+            if (world_rank == 0)
+            {
+                OmpTaskSolver solver(z_constant);
                 time_taken = solver.solve(board);
                 best_cost = solver.best_cost;
                 best_board = solver.best_board;

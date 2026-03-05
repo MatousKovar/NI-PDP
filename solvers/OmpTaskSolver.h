@@ -4,22 +4,24 @@
 
 #ifndef NI_PDP_OMPTASKSOLVER_H
 #define NI_PDP_OMPTASKSOLVER_H
-#include "../common/Board.h";
-#include "../common/Pieces.h";
+#include "../common/Board.h"
+#include "../common/Pieces.h"
 
 class OmpTaskSolver {
 private:
-    int best_cost;
+
     int z;
-    Board best_board;
+
 
 
     void solveDFSSeq(Board &board, int start_idx, int piece_id, long long &local_calls);
 
     // Samotná rekurzivní BB-DFS funkce
-    void solveDFS(Board board, int start_idx, int piece_id, int& depth);
+    void solveDFS(Board board, int start_idx, int piece_id, int depth);
 
 public:
+    Board best_board;
+    int best_cost;
     int calls_counter;
     int getBestCost() const { return best_cost; }
     Board getBestBoard() const { return best_board; }
