@@ -23,7 +23,7 @@ public:
     volatile int best_cost;
     Board best_board;
 
-    OmpSolver(int n_threads, int z = 40) : n_threads(4), global_best(0), z(z) {} ;
+    OmpSolver(int n_threads, int z = 40) : global_best(0),  n_threads(4), z(z) {} ;
 
     double solve(const Board& initialBoard);
 private:

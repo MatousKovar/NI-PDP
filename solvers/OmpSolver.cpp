@@ -137,7 +137,7 @@ std::vector<SearchState> OmpSolver::generateStartingBoards(const Board &original
     // fronta je realizována jako vektor
     // head je aktuální vrchol fronty
     // ve fronte za indexem head uz jsou tedy jen listy
-    int head = 0;
+    size_t head = 0;
 
     while ((queue.size() - head) < limit && head < queue.size())
     {

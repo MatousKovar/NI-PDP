@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
                 time_taken = solver.solve(board);
                 best_cost = solver.best_cost;
                 best_board = solver.best_board;
-                calls_counter = solver.calls_counter;
+                // calls_counter = solver.calls_counter;
             }
         }
         else if (solver_type == "omptask")
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
                 time_taken = solver.solve(board);
                 best_cost = solver.best_cost;
                 best_board = solver.best_board;
-                calls_counter = solver.calls_counter;
+                // calls_counter = solver.calls_counter;
             }
         }
         else if (solver_type == "mpi")
@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
             {
                 best_cost = solver.best_cost;
                 best_board = solver.best_board;
-                calls_counter = solver.calls_counter;
+                // calls_counter = solver.calls_counter;
             }
         }
 

@@ -31,6 +31,12 @@ add_executable(NI_PDP main.cpp
         solvers/OmpTaskSolver.h
 )
 
+target_compile_options(NI_PDP PRIVATE
+        -O3         # Maximální optimalizace rychlosti
+        -Wall       # Zapnutí varování kompilátoru (dobrá praxe)
+        -Wextra     # Další užitečná varování
+)
+
 # Připojení nalezené knihovny k projektu
 if(OpenMP_CXX_FOUND)
     target_link_libraries(NI_PDP PUBLIC OpenMP::OpenMP_CXX PRIVATE MPI::MPI_CXX)

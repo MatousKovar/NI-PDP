@@ -26,7 +26,7 @@ double MpiSolver::solve(const Board &initialBoard)
         int next_task = 0;
 
         // prvotni rozdani prace
-        for (int i = 1; i < world_size && next_task < queue.size(); ++i)
+        for (size_t i = 1; i < world_size && next_task < queue.size(); ++i)
         {
             packState(queue[next_task], buffer);
             MPI_Send(buffer, buffer_size, MPI_INT, i, TAG_WORK, MPI_COMM_WORLD);
@@ -53,7 +53,7 @@ double MpiSolver::solve(const Board &initialBoard)
             }
 
 
-            if (next_task < queue.size())
+            if (next_task < (int)queue.size())
             {
                 packState(queue[next_task], buffer);
                 MPI_Send(buffer, buffer_size, MPI_INT, sender, TAG_WORK, MPI_COMM_WORLD);

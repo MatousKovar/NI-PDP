@@ -20,7 +20,7 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
         // poprve kontrola bez zamku aby se vlakna nezdrzovala, podruhe kontrola i prepis v kriticke sekci
         if (board.getCurrentCost() > best_cost)
         {
-#pragma omp critical
+            #pragma omp critical
             {
                 if (board.getCurrentCost() > best_cost)
                 {
@@ -85,8 +85,6 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
  * @param depth uroven zanoreni
  */
 void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth) {
-#pragma omp atomic
-    calls_counter++;
 
     if (best_cost == board.getTrivialUpperBound()) return;
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
@@ -100,7 +98,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
         // prvni kontrola je bez zamku pro minimalizaci cekani, az druha kontrola je s kritickou sekci
         if (board.getCurrentCost() > best_cost)
         {
-#pragma omp critical
+            #pragma omp critical
             {
                 if (board.getCurrentCost() > best_cost)
                 {
@@ -123,7 +121,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
         // prepinani mezi sekvencnim a vicevlaknovym vetvenim
         if (depth < z)
         {
-#pragma omp task shared(best_cost, best_board)
+            #pragma omp task shared(best_cost, best_board)
             solveDFS(board, cell + 1, piece_id, depth + 1);
         }
         else
@@ -132,7 +130,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
         if (best_cost == board.getTrivialUpperBound())
         {
-#pragma omp taskwait // Kdyz koncime predcasne, musime pockat na tasky!
+            #pragma omp taskwait // Kdyz koncime predcasne, musime pockat na tasky!
             return;
         }
 
@@ -145,7 +143,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
                 if (depth < z)
                 {
-#pragma omp task shared(best_cost, best_board)
+                    #pragma omp task shared(best_cost, best_board)
                     solveDFS(board, cell + 1, piece_id, depth + 1); // Vytvoříme úkol
                 }
                 else
@@ -165,7 +163,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
                 if (depth < z)
                 {
-#pragma omp task shared(best_cost, best_board)
+                    #pragma omp task shared(best_cost, best_board)
                     solveDFS(board, cell + 1, piece_id, depth + 1);
                 }
                 else
@@ -177,14 +175,14 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
         if (best_cost == board.getTrivialUpperBound())
         {
-#pragma omp taskwait
+            #pragma omp taskwait
             return;
         }
 
         board.markAsEmpty(cell);
         if (depth < z)
         {
-#pragma omp task shared(best_cost, best_board)
+            #pragma omp task shared(best_cost, best_board)
             solveDFS(board, cell + 1, piece_id, depth + 1);
         }
         else
@@ -192,21 +190,24 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
         board.unmarkAsEmpty(cell);
     }
     // master musi pockat na ostatni vlakna
-#pragma omp taskwait
+    #pragma omp taskwait
 }
 
 
-double OmpTaskSolver::solve(Board initial_board)
-§{
-#pragma omp parallel
-#pragma omp single
+double OmpTaskSolver::solve(const Board& initial_board) {
     best_cost = -1;
     best_board = initial_board;
     calls_counter = 0;
     int depth = 0;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    solveDFS(initial_board, 0, 1, depth);
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            solveDFS(initial_board, 0, 1, depth);
+        }
+    }
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> elapsed = end_time - start_time;
