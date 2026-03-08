@@ -7,20 +7,22 @@
 
 
 void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
+    // base conditions
     if (best_cost == board.getTrivialUpperBound()) return;
-
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
+
+
 
     // Nalezení dalšího volného políčka k rozhodnutí
     int cell = board.getNextFreeCell(start_idx);
 
-    // Konec desky - zkontrolujeme, zda máme nový rekord
+    // Konec desky - zkontrolujeme, zda máme nový rekord a navrat
     if (cell == -1)
     {
         // poprve kontrola bez zamku aby se vlakna nezdrzovala, podruhe kontrola i prepis v kriticke sekci
         if (board.getCurrentCost() > best_cost)
         {
-            #pragma omp critical
+            #pragma omp critical // <-----------------------------ZDE ZMENA
             {
                 if (board.getCurrentCost() > best_cost)
                 {
@@ -84,21 +86,21 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
  * @param piece_id startovaci id prvniho mozneho polozeneho dilku v behu
  * @param depth uroven zanoreni
  */
-void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth) {
-
+void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth)
+{
+    // base conditions
     if (best_cost == board.getTrivialUpperBound()) return;
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
 
     // Nalezení dalšího volného políčka k rozhodnutí
     int cell = board.getNextFreeCell(start_idx);
 
-    // Konec desky
+    // Konec desky - kontrola a vraceni v rekurzi
     if (cell == -1)
     {
-        // prvni kontrola je bez zamku pro minimalizaci cekani, az druha kontrola je s kritickou sekci
         if (board.getCurrentCost() > best_cost)
         {
-            #pragma omp critical
+            #pragma omp critical // < ------------------------------ KRITICKA SEKCE - novinka oproti sekvencnimu
             {
                 if (board.getCurrentCost() > best_cost)
                 {
@@ -110,18 +112,16 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
         return;
     }
 
-    // Branching
     int cell_val = board.getCellValue(cell);
 
-    // v policku je kladna hodnota
-    if (cell_val > 0)
+    if (cell_val > 0) // policko obsahuje kladnou hodnotu
     {
         board.markAsEmpty(cell);
 
-        // prepinani mezi sekvencnim a vicevlaknovym vetvenim
-        if (depth < z)
+
+        if (depth < z) // prepinani mezi sekvencnim a vicevlaknovym vetvenim, z by mela byt mala konstanta
         {
-            #pragma omp task shared(best_cost, best_board)
+            #pragma omp task shared(best_cost, best_board) // predavame globalni promenne do tasku
             solveDFS(board, cell + 1, piece_id, depth + 1);
         }
         else
@@ -130,12 +130,12 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
         if (best_cost == board.getTrivialUpperBound())
         {
-            #pragma omp taskwait // Kdyz koncime predcasne, musime pockat na tasky!
+            #pragma omp taskwait // Kdyz koncime predcasne, musime pockat nez se ukonci vsechny tasky v tomto vlaknu - sdileny zasobnik
             return;
         }
 
-        // 2. Zkusíme všechny varianty dílku
-        for (int i = 0; i < 12; ++i)
+
+        for (int i = 0; i < 12; ++i) // pokladani dilku
         {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {

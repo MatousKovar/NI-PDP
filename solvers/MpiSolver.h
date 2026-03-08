@@ -7,7 +7,7 @@
 #include <mpi.h>
 #include "../common/Board.h"
 #include "../common/Pieces.h"
-#include "OmpSolver.h"
+#include "OmpSolver.h" // pouze kvuli search state
 
 
 class MpiSolver {

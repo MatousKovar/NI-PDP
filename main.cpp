@@ -10,6 +10,7 @@
 #include "solvers/MpiSolver.h"
 #include "solvers/OmpTaskSolver.h"
 #include <mpi.h>
+#include <omp.h>
 
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
@@ -19,11 +20,14 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
     //kontrola poctu argumentu
-    if (argc < 3 || argc > 4)
+    if (argc < 3 || argc > 5)
     {
-        std::cerr << "Chyba: Spatny pocet argumentu!\n";
-        std::cerr << "Pouziti (sekvencni): " << argv[0] << " <cesta_k_mape> sequential\n";
-        std::cerr << "Pouziti (paralelni): " << argv[0] << " <cesta_k_mape> <omp/mpi> <z_konstanta>\n";
+        if (world_rank == 0) {
+            std::cerr << "Chyba: Spatny pocet argumentu!\n";
+            std::cerr << "Pouziti (sekvencni): " << argv[0] << " <cesta> sequential\n";
+            std::cerr << "Pouziti (MPI):       " << argv[0] << " <cesta> mpi <z_konstanta>\n";
+            std::cerr << "Pouziti (OpenMP):    " << argv[0] << " <cesta> <omp/omptask> <z_konstanta> <pocet_vlaken>\n";
+        }
         MPI_Finalize();
         return 1;
     }
@@ -60,6 +64,10 @@ int main(int argc, char *argv[]) {
         std::cerr << "Chyba: Neznamy typ solveru. Povolene hodnoty: sequential, omp, mpi.\n";
         MPI_Finalize();
         return 1;
+    }
+
+    if (solver_type == "omp" || solver_type == "omptask") {
+        omp_set_num_threads(num_threads);
     }
 
     //------------------------------  MAPA --------------------
