@@ -14,7 +14,7 @@ private:
 
 
 
-    void solveDFSSeq(Board &board, int start_idx, int piece_id, long long &local_calls);
+    void solveDFSSeq(Board &board, int start_idx, int piece_id);
 
     // Samotná rekurzivní BB-DFS funkce
     void solveDFS(Board board, int start_idx, int piece_id, int depth);
@@ -22,7 +22,7 @@ private:
 public:
     Board best_board;
     int best_cost;
-    int calls_counter;
+    long long calls_counter;
     int getBestCost() const { return best_cost; }
     Board getBestBoard() const { return best_board; }
     OmpTaskSolver(int z) : best_cost(-1), calls_counter(0), z(z) {}

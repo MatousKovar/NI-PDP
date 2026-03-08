@@ -6,9 +6,7 @@
 #include <omp.h>
 
 
-void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id, long long &local_calls) {
-    local_calls++;
-
+void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
     if (best_cost == board.getTrivialUpperBound()) return;
 
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
@@ -22,7 +20,7 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id, long 
         // poprve kontrola bez zamku aby se vlakna nezdrzovala, podruhe kontrola i prepis v kriticke sekci
         if (board.getCurrentCost() > best_cost)
         {
-            #pragma omp critical
+#pragma omp critical
             {
                 if (board.getCurrentCost() > best_cost)
                 {
@@ -42,7 +40,7 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id, long 
     if (cell_val > 0)
     {
         board.markAsEmpty(cell);
-        solveDFSSeq(board, cell + 1, piece_id, local_calls);
+        solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
 
         if (best_cost == board.getTrivialUpperBound()) return;
@@ -52,7 +50,7 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id, long 
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id, local_calls);
+                solveDFSSeq(board, cell + 1, piece_id);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -65,7 +63,7 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id, long 
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id, local_calls);
+                solveDFSSeq(board, cell + 1, piece_id);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -73,7 +71,7 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id, long 
         if (best_cost == board.getTrivialUpperBound()) return;
 
         board.markAsEmpty(cell);
-        solveDFSSeq(board, cell + 1, piece_id, local_calls);
+        solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
     }
 }
@@ -87,7 +85,7 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id, long 
  * @param depth uroven zanoreni
  */
 void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth) {
-    #pragma omp atomic
+#pragma omp atomic
     calls_counter++;
 
     if (best_cost == board.getTrivialUpperBound()) return;
@@ -102,7 +100,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
         // prvni kontrola je bez zamku pro minimalizaci cekani, az druha kontrola je s kritickou sekci
         if (board.getCurrentCost() > best_cost)
         {
-            #pragma omp critical
+#pragma omp critical
             {
                 if (board.getCurrentCost() > best_cost)
                 {
@@ -125,21 +123,16 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
         // prepinani mezi sekvencnim a vicevlaknovym vetvenim
         if (depth < z)
         {
-            #pragma omp task shared(best_cost, best_board)
+#pragma omp task shared(best_cost, best_board)
             solveDFS(board, cell + 1, piece_id, depth + 1);
         }
         else
-        {
-            long long local_calls = 0;
-            solveDFSSeq(board, cell + 1, piece_id, local_calls);
-            #pragma omp atomic
-            calls_counter += local_calls;
-        }
+            solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
 
         if (best_cost == board.getTrivialUpperBound())
         {
-            #pragma omp taskwait // Kdyz koncime predcasne, musime pockat na tasky!
+#pragma omp taskwait // Kdyz koncime predcasne, musime pockat na tasky!
             return;
         }
 
@@ -152,16 +145,11 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
                 if (depth < z)
                 {
-                    #pragma omp task shared(best_cost, best_board)
+#pragma omp task shared(best_cost, best_board)
                     solveDFS(board, cell + 1, piece_id, depth + 1); // Vytvoříme úkol
                 }
                 else
-                {
-                    long long local_calls = 0;
-                    solveDFSSeq(board, cell + 1, piece_id, local_calls); // Jdeme do sekvence
-                    #pragma omp atomic
-                    calls_counter += local_calls;
-                }
+                    solveDFSSeq(board, cell + 1, piece_id); // Jdeme do sekvence
 
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
@@ -177,16 +165,11 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
                 if (depth < z)
                 {
-                    #pragma omp task shared(best_cost, best_board)
+#pragma omp task shared(best_cost, best_board)
                     solveDFS(board, cell + 1, piece_id, depth + 1);
                 }
                 else
-                {
-                    long long local_calls = 0;
-                    solveDFSSeq(board, cell + 1, piece_id, local_calls);
-                    #pragma omp atomic
-                    calls_counter += local_calls;
-                }
+                    solveDFSSeq(board, cell + 1, piece_id);
 
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
@@ -194,31 +177,27 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
         if (best_cost == board.getTrivialUpperBound())
         {
-            #pragma omp taskwait
+#pragma omp taskwait
             return;
         }
 
         board.markAsEmpty(cell);
         if (depth < z)
         {
-            #pragma omp task shared(best_cost, best_board)
+#pragma omp task shared(best_cost, best_board)
             solveDFS(board, cell + 1, piece_id, depth + 1);
         }
         else
-        {
-            long long local_calls = 0;
-            solveDFSSeq(board, cell + 1, piece_id, local_calls);
-            #pragma omp atomic
-            calls_counter += local_calls;
-        }
+            solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
     }
     // master musi pockat na ostatni vlakna
-    #pragma omp taskwait
+#pragma omp taskwait
 }
 
 
-double OmpTaskSolver::solve(Board initial_board) {
+double OmpTaskSolver::solve(Board initial_board)
+§{
 #pragma omp parallel
 #pragma omp single
     best_cost = -1;
