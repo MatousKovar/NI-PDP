@@ -11,13 +11,20 @@ double MpiSolver::solve(const Board &initialBoard)
     best_board = initialBoard;
     calls_counter = 0;
 
-    //buffer pro posilani dat slave procesum
-    int buffer_size = 4 + initialBoard.getSize();
-    int *buffer = new int[buffer_size];
+    // ALOKACE BUFFERU
+    // work_buffer: Master->Slave --- zadani ukolu
+    int work_buffer_size = 4 + initialBoard.getSize(); // prvni 4 policka jsou viz packState
+    int *work_buffer = new int[work_buffer_size];
+
+    // result_buffer: Slave->Master --- nalezene reseni
+    int result_buffer_size = 2 + initialBoard.getSize(); // prvni dve policka jsou calls, best_score - viz send_state
+    long long *result_buffer = new long long[result_buffer_size]; // Použijeme long long kvůli calls
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
+    // =========================================================
     // MASTER PROCESS
+    // =========================================================
     if (world_rank == 0)
     {
         std::vector<SearchState> queue = generateStartingBoards(initialBoard);
@@ -25,82 +32,102 @@ double MpiSolver::solve(const Board &initialBoard)
         int active_slaves = 0;
         int next_task = 0;
 
-        // prvotni rozdani prace
-        for (size_t i = 1; i < world_size && next_task < queue.size(); ++i)
+        // Prvotní rozdání práce (Pokud je úkolů méně než procesů, nezaměstnáme všechny!)
+        for (int i = 1; i < world_size && next_task < queue.size(); ++i)
         {
-            packState(queue[next_task], buffer);
-            MPI_Send(buffer, buffer_size, MPI_INT, i, TAG_WORK, MPI_COMM_WORLD);
+            packState(queue[next_task], work_buffer);
+            MPI_Send(work_buffer, work_buffer_size, MPI_INT, i, TAG_WORK, MPI_COMM_WORLD);
             next_task++;
             active_slaves++;
         }
-
 
         while (active_slaves > 0)
         {
             MPI_Status status;
 
-            // cekame na odpoved
-            MPI_Recv(buffer, buffer_size, MPI_INT, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
-
+            // Čekáme na VÝSLEDEK od kteréhokoliv Slave procesu (Nyní přijímáme správný typ result_buffer!)
+            MPI_Recv(result_buffer, result_buffer_size, MPI_LONG_LONG, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
             int sender = status.MPI_SOURCE;
 
-            // update nejlepsiho reseni logika
-            calls_counter += buffer[1];
-            if (buffer[0] > best_cost)
-            {
-                best_cost = buffer[0];
+            long long received_cost = result_buffer[0];
+            long long received_calls = result_buffer[1];
 
+            calls_counter += received_calls;
+
+            // Update nejlepšího řešení a desky
+            if (received_cost > best_cost)
+            {
+                best_cost = received_cost;
+
+                // Slave nám poslal i tu desku, tak si ji uložme!
+                for (int i = 0; i < initialBoard.getSize(); ++i) {
+                    best_board.setStateAt(i, (int)result_buffer[2 + i]);
+                }
+                best_board.setCurrentCost(best_cost);
             }
 
-
+            // Pokud máme další práci, pošleme ji tomu samému Slave procesu, který se právě uvolnil
             if (next_task < (int)queue.size())
             {
-                packState(queue[next_task], buffer);
-                MPI_Send(buffer, buffer_size, MPI_INT, sender, TAG_WORK, MPI_COMM_WORLD);
+                packState(queue[next_task], work_buffer);
+                MPI_Send(work_buffer, work_buffer_size, MPI_INT, sender, TAG_WORK, MPI_COMM_WORLD);
                 next_task++;
             }
             else
             {
-                MPI_Send(buffer, buffer_size, MPI_INT, sender, TAG_END, MPI_COMM_WORLD);
+                MPI_Send(work_buffer, work_buffer_size, MPI_INT, sender, TAG_END, MPI_COMM_WORLD);
                 active_slaves--;
             }
         }
     }
-    // SLAVE PROCESS
+    // SLAVE
     else
     {
-        long long local_calls = 0;
-
-        while (true) {
+        while (true)
+        {
             MPI_Status status;
 
-            // 1. Čekáme na zprávu od Mastera
-            MPI_Recv(buffer, buffer_size, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            // Čekáme na zadání práce od Mastera
+            MPI_Recv(work_buffer, work_buffer_size, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
             if (status.MPI_TAG == TAG_END)
-                break; // Tímto Slave proces dokončí svou práci a dojde k MPI_Finalize
+                break;
 
-            // 3. Pokud nám Master poslal práci, jdeme počítat
             if (status.MPI_TAG == TAG_WORK)
             {
-                SearchState state = unpackState(buffer, initialBoard);
+                SearchState state = unpackState(work_buffer, initialBoard);
+                long long local_calls = 0;
 
-                local_calls = 0;
+                best_cost = -1;
+                best_board = state.board;
 
+                // Spuštění sekvenční rekurze pro tento podstrom!
+                // Zde nejspíš chybí implementace samotné rekurze uvnitř solveDFS,
+                // ale zavoláme ji s tím lokálním best_cost.
                 solveDFS(state.board, state.start_idx, state.start_piece_id, local_calls, best_cost);
 
-                long long result[2];
-                result[0] = best_cost;
-                result[1] = local_calls;
+                // 4. Balení a odeslání výsledku ZPĚT Masterovi
+                result_buffer[0] = best_cost;
+                result_buffer[1] = local_calls;
+                for (int i = 0; i < initialBoard.getSize(); ++i) {
+                    result_buffer[2 + i] = best_board.getStateAt(i);
+                }
 
-                MPI_Send(result, 2, MPI_LONG_LONG, 0, TAG_RESULT, MPI_COMM_WORLD);
+                // Odesíláme výsledek ve formátu MPI_LONG_LONG
+                MPI_Send(result_buffer, result_buffer_size, MPI_LONG_LONG, 0, TAG_RESULT, MPI_COMM_WORLD);
             }
         }
     }
 
-    return 0.0;
-}
+    // Úklid paměti!
+    delete[] work_buffer;
+    delete[] result_buffer;
 
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
+
+    return elapsed.count();
+}
 
 /**
  * Spousteno pouze v slave procesech
@@ -110,7 +137,9 @@ double MpiSolver::solve(const Board &initialBoard)
  * @param local_calls - pocet volani, ktere agreguje v rekurzi kolikrat se funkce vola
  * @param global_best - global best neni globalni promenna, kvuli distribuovane pameti
  */
-void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls, int global_best) {
+void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls, int global_best)
+{
+
 }
 
 /**
