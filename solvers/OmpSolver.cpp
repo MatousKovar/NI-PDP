@@ -24,8 +24,8 @@ double OmpSolver::solve(const Board &initialBoard) {
 
         solveDFS(local_board, local_start, local_piece,local_calls);
 
-        #pragma omp atomic
-        calls_counter += local_calls;
+        // #pragma omp atomic
+        // calls_counter += local_calls;
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -57,7 +57,6 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
     int cell = board.getNextFreeCell(start_idx);
 
     // Konec desky - zkontrolujeme, zda máme nový rekord
-
     if (cell == -1)
     {
         if (board.getCurrentCost() > best_cost)
@@ -88,7 +87,6 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
 
         // Následně zkusíme všechny varianty dilku
         for (int i = 0; i < 12; ++i)
-
         {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {

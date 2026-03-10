@@ -118,7 +118,6 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
     {
         board.markAsEmpty(cell);
 
-
         if (depth < z) // prepinani mezi sekvencnim a vicevlaknovym vetvenim, z by mela byt mala konstanta
         {
             #pragma omp task shared(best_cost, best_board) // predavame globalni promenne do tasku
@@ -189,7 +188,8 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
             solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
     }
-    // master musi pockat na ostatni vlakna
+
+    // master musi pockat na dokonceni ostatnich tasku, ktere vytvoril
     #pragma omp taskwait
 }
 
