@@ -29,7 +29,7 @@ private:
     const int TAG_END = 2; // master posila pokyn k ukonceni
     const int TAG_RESULT = 3; // slave posila masterovi vysledky
 
-    void solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls, int global_best);
+    void solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls);
     std::vector<SearchState> generateStartingBoards(const Board& original_board) const;
 
     static void packState(const SearchState &state, int *buffer);

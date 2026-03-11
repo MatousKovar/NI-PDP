@@ -5,8 +5,7 @@
 #include "MpiSolver.h"
 
 
-double MpiSolver::solve(const Board &initialBoard)
-{
+double MpiSolver::solve(const Board &initialBoard) {
     best_cost = -1;
     best_board = initialBoard;
     calls_counter = 0;
@@ -46,7 +45,8 @@ double MpiSolver::solve(const Board &initialBoard)
             MPI_Status status;
 
             // Čekáme na VÝSLEDEK od kteréhokoliv Slave procesu (Nyní přijímáme správný typ result_buffer!)
-            MPI_Recv(result_buffer, result_buffer_size, MPI_LONG_LONG, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
+            MPI_Recv(result_buffer, result_buffer_size, MPI_LONG_LONG, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD,
+                     &status);
             int sender = status.MPI_SOURCE;
 
             long long received_cost = result_buffer[0];
@@ -60,14 +60,15 @@ double MpiSolver::solve(const Board &initialBoard)
                 best_cost = received_cost;
 
                 // Slave nám poslal i tu desku, tak si ji uložme!
-                for (int i = 0; i < initialBoard.getSize(); ++i) {
-                    best_board.setStateAt(i, (int)result_buffer[2 + i]);
+                for (int i = 0; i < initialBoard.getSize(); ++i)
+                {
+                    best_board.setStateAt(i, (int) result_buffer[2 + i]);
                 }
                 best_board.setCurrentCost(best_cost);
             }
 
             // Pokud máme další práci, pošleme ji tomu samému Slave procesu, který se právě uvolnil
-            if (next_task < (int)queue.size())
+            if (next_task < (int) queue.size())
             {
                 packState(queue[next_task], work_buffer);
                 MPI_Send(work_buffer, work_buffer_size, MPI_INT, sender, TAG_WORK, MPI_COMM_WORLD);
@@ -104,16 +105,17 @@ double MpiSolver::solve(const Board &initialBoard)
                 // Spuštění sekvenční rekurze pro tento podstrom!
                 // Zde nejspíš chybí implementace samotné rekurze uvnitř solveDFS,
                 // ale zavoláme ji s tím lokálním best_cost.
-                solveDFS(state.board, state.start_idx, state.start_piece_id, local_calls, best_cost);
+                solveDFS(state.board, state.start_idx, state.start_piece_id, local_calls);
 
                 // 4. Balení a odeslání výsledku ZPĚT Masterovi
                 result_buffer[0] = best_cost;
                 result_buffer[1] = local_calls;
-                for (int i = 0; i < initialBoard.getSize(); ++i) {
+                for (int i = 0; i < initialBoard.getSize(); ++i)
+                {
                     result_buffer[2 + i] = best_board.getStateAt(i);
                 }
 
-                // Odesíláme výsledek ve formátu MPI_LONG_LONG
+                // Odesíláme best_cost local_calls a nejlepsi nalezenou vypracovanou desku
                 MPI_Send(result_buffer, result_buffer_size, MPI_LONG_LONG, 0, TAG_RESULT, MPI_COMM_WORLD);
             }
         }
@@ -137,9 +139,74 @@ double MpiSolver::solve(const Board &initialBoard)
  * @param local_calls - pocet volani, ktere agreguje v rekurzi kolikrat se funkce vola
  * @param global_best - global best neni globalni promenna, kvuli distribuovane pameti
  */
-void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls, int global_best)
-{
+void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls) {
+    local_calls += 1;
+    if (best_cost == board.getTrivialUpperBound())
+        return;
 
+    // Ořezávání neperspektivních větví - pokud bych zakryl vsechny zaporne, tak stejne nedostanu lepsi reseni nez jsem uz nasel
+    if (board.getTheoreticalMaxPossibleCost() <= best_cost)
+        return;
+
+    // Nalezení dalšího volného políčka k rozhodnutí - je volne a nema byt preskoceno
+    int cell = board.getNextFreeCell(start_idx);
+
+    // Konec desky - zkontrolujeme, zda máme nový rekord
+    if (cell == -1)
+    {
+        if (board.getCurrentCost() > global_best)
+        {
+            global_best = board.getCurrentCost();
+            best_board = board; // Uložíme kopii nejlepšího stavu
+            best_cost = board.getCurrentCost();
+        }
+        return;
+    }
+
+    // Branching
+    int cell_val = board.getCellValue(cell);
+
+    // Hodnota na volnem policku je kladna - chceme idealne nezakryt -> ten stav navstivime prvni
+    if (cell_val > 0)
+    {
+        board.markAsEmpty(cell);
+        solveDFS(board, cell + 1, piece_id, local_calls);
+        board.unmarkAsEmpty(cell);
+
+        // Pokud jsme vynecháním už dosáhli maxima, nemusíme zkoušet pokládat dílky
+        if (best_cost == board.getTrivialUpperBound()) return;
+
+        // Následně zkusíme všechny varianty dilku
+        for (int i = 0; i < 12; ++i)
+        {
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
+            {
+                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
+                solveDFS(board, cell + 1, piece_id, local_calls);
+                board.removePiece(cell, Pieces::VARIANTS[i]);
+            }
+        }
+    }
+    else
+    {
+        // v pripade ze je policko se zapornou hodnotou, tak je nejlepsi moznost ze bude zakryto -> to zkousime prvni
+        for (int i = 0; i < 12; ++i)
+        {
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
+            {
+                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
+                solveDFS(board, cell + 1, piece_id, local_calls);
+                board.removePiece(cell, Pieces::VARIANTS[i]);
+            }
+        }
+
+        if (best_cost == board.getTrivialUpperBound()) return;
+
+        // Až jako poslední zoufalou možnost zkusíme záporné políčko úmyslně vynechat
+        board.markAsEmpty(cell);
+        solveDFS(board, cell + 1, piece_id, local_calls);
+        board.unmarkAsEmpty(cell);
+    }
 }
 
 /**
@@ -236,5 +303,3 @@ SearchState MpiSolver::unpackState(const int *buffer, const Board &original_boar
 
     return s;
 }
-
-
