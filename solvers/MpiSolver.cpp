@@ -12,18 +12,16 @@ double MpiSolver::solve(const Board &initialBoard) {
 
     // ALOKACE BUFFERU
     // work_buffer: Master->Slave --- zadani ukolu
-    int work_buffer_size = 4 + initialBoard.getSize(); // prvni 4 policka jsou viz packState
+    int work_buffer_size = 5 + initialBoard.getSize(); // prvni 4 policka jsou viz packState
     int *work_buffer = new int[work_buffer_size];
 
     // result_buffer: Slave->Master --- nalezene reseni
-    int result_buffer_size = 2 + initialBoard.getSize(); // prvni dve policka jsou calls, best_score - viz send_state
+    int result_buffer_size = 3 + initialBoard.getSize(); // prvni dve policka jsou calls, best_score - viz send_state
     long long *result_buffer = new long long[result_buffer_size]; // Použijeme long long kvůli calls
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    // =========================================================
     // MASTER PROCESS
-    // =========================================================
     if (world_rank == 0)
     {
         std::vector<SearchState> queue = generateStartingBoards(initialBoard);
@@ -99,7 +97,6 @@ double MpiSolver::solve(const Board &initialBoard) {
                 SearchState state = unpackState(work_buffer, initialBoard);
                 long long local_calls = 0;
 
-                best_cost = -1;
                 best_board = state.board;
 
                 // Spuštění sekvenční rekurze pro tento podstrom!
@@ -275,13 +272,12 @@ void MpiSolver::packState(const SearchState &state, int *buffer) {
     buffer[1] = state.start_piece_id;
     buffer[2] = state.board.getCurrentCost();
     buffer[3] = state.board.getRemainingPosSum();
+    buffer[4] = best_cost;
 
     // Překopírování stavu desky (toho, co už je reálně položené)
     int size = state.board.getSize();
     for (int i = 0; i < size; ++i)
-    {
-        buffer[4 + i] = state.board.getStateAt(i);
-    }
+        buffer[5 + i] = state.board.getStateAt(i);
 }
 
 SearchState MpiSolver::unpackState(const int *buffer, const Board &original_board) {
@@ -293,13 +289,12 @@ SearchState MpiSolver::unpackState(const int *buffer, const Board &original_boar
     s.start_piece_id = buffer[1];
     s.board.setCurrentCost(buffer[2]);
     s.board.setRemainingPosSum(buffer[3]);
+    best_cost = buffer[4];
 
     // Přepíšeme stav desky z přijatého bufferu
     int size = original_board.getSize();
     for (int i = 0; i < size; ++i)
-    {
-        s.board.setStateAt(i, buffer[4 + i]);
-    }
+        s.board.setStateAt(i, buffer[5 + i]);
 
     return s;
 }
