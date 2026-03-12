@@ -173,7 +173,13 @@ void Board::printSolution(std::ostream& os) const {
             int cell_state = state[idx];
 
             if (cell_state > 0) {
-                os << std::setw(3) << piece_types[cell_state - 1] << cell_state << " ";
+                // BEZPEČNÝ PŘÍSTUP: Zkontrolujeme, zda vůbec máme piece_types k dispozici
+                if (!piece_types.empty() && (cell_state - 1) < piece_types.size()) {
+                    os << std::setw(3) << piece_types[cell_state - 1] << cell_state << " ";
+                } else {
+                    // Fallback pro Master proces, který dostal jen state bez piece_types
+                    os << std::setw(3) << "P" << cell_state << " ";
+                }
             } else {
                 os << std::setw(4) << values[idx] << " ";
             }

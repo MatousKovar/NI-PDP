@@ -60,9 +60,7 @@ double MpiSolver::solve(const Board &initialBoard) {
 
                 // Slave nám poslal i tu desku, tak si ji uložme
                 for (int i = 0; i < initialBoard.getSize(); ++i)
-                {
                     best_board.setStateAt(i, (int)result_buffer[2 + i]);
-                }
                 best_board.setCurrentCost(best_cost);
             }
 
@@ -109,9 +107,7 @@ double MpiSolver::solve(const Board &initialBoard) {
                 result_buffer[0] = best_cost;
                 result_buffer[1] = local_calls;
                 for (int i = 0; i < initialBoard.getSize(); ++i)
-                {
                     result_buffer[2 + i] = best_board.getStateAt(i);
-                }
 
                 // Odesíláme výsledek
                 MPI_Send(result_buffer.data(), result_buffer_size, MPI_LONG_LONG, 0, TAG_RESULT, MPI_COMM_WORLD);
