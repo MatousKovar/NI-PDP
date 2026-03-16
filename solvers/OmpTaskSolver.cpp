@@ -4,6 +4,7 @@
 
 #include "OmpTaskSolver.h"
 #include <omp.h>
+#include <chrono>
 
 
 void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
