@@ -15,7 +15,6 @@ private:
 
 
     void solveDFSSeq(Board &board, int start_idx, int piece_id);
-
     // Samotná rekurzivní BB-DFS funkce
     void solveDFS(Board board, int start_idx, int piece_id, int depth);
 

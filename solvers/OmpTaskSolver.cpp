@@ -6,15 +6,14 @@
 #include <omp.h>
 #include <chrono>
 
-
+/**
+ * Klasicke sekvencni, jedine co, tak kdyz pristupuju k atributum oznacenym jako SHARED, tak musim pres kritisckou sekci
+ * @param board - predava se referenci protoze tady uz se bezi sekvencne, nemusi se resit preisovani
+ */
 void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
-    // base conditions
     if (best_cost == board.getTrivialUpperBound()) return;
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
 
-
-
-    // Nalezení dalšího volného políčka k rozhodnutí
     int cell = board.getNextFreeCell(start_idx);
 
     // Konec desky - zkontrolujeme, zda máme nový rekord a navrat
@@ -60,7 +59,6 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
     }
     else
     {
-        // Zaporna policka
         for (int i = 0; i < 12; ++i)
         {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
@@ -81,19 +79,15 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
 
 
 /**
- * pri spousteni tasku si posilaji promenne best_cost a best_board jako sdilene, protoze task si dela kopie standardne
- * @param board predavano hodnotou!!! ne reference
- * @param start_idx startovaci index prohledavani
- * @param piece_id startovaci id prvniho mozneho polozeneho dilku v behu
- * @param depth uroven zanoreni
+ * pri spousteni tasku si posilaji promenne best_cost a best_board jako sdilene, protoze task si dela neco jako kopii kontextu standardne
+ * @param board predavano hodnotou, musi byt kopie pro kazdy task
+ * @param depth maximalni povolena uroven zanoreni, nez prechazim k sekvencnimu reseni, idealne mensi cislo - 2, nebo 3, tak aby vetsina vypoctu byla v sekvencnim reseni
  */
 void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth)
 {
-    // base conditions
     if (best_cost == board.getTrivialUpperBound()) return;
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
 
-    // Nalezení dalšího volného políčka k rozhodnutí
     int cell = board.getNextFreeCell(start_idx);
 
     // Konec desky - kontrola a vraceni v rekurzi
@@ -101,7 +95,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
     {
         if (board.getCurrentCost() > best_cost)
         {
-            #pragma omp critical // < ------------------------------ KRITICKA SEKCE - novinka oproti sekvencnimu
+            #pragma omp critical // < ------------------------------ KRITICKA SEKCE - novinka oproti sekvencnimu, pristup ke sdilene promenne
             {
                 if (board.getCurrentCost() > best_cost)
                 {
@@ -115,11 +109,12 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
     int cell_val = board.getCellValue(cell);
 
-    if (cell_val > 0) // policko obsahuje kladnou hodnotu
+    //VETVENI PODLE HODNOTY POLICKA
+    if (cell_val > 0)
     {
         board.markAsEmpty(cell);
 
-        if (depth < z) // prepinani mezi sekvencnim a vicevlaknovym vetvenim, z by mela byt mala konstanta
+        if (depth < z) // prepinani mezi sekvencnim a vicevlaknovym vetvenim, z by mela byt mala konstanta - napr 2, at se vytvori dost tasku, ktere budou vypocetne narocne, ne naopak
         {
             #pragma omp task shared(best_cost, best_board) // predavame globalni promenne do tasku
             solveDFS(board, cell + 1, piece_id, depth + 1);
@@ -140,7 +135,6 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-
                 if (depth < z)
                 {
                     #pragma omp task shared(best_cost, best_board)
@@ -190,7 +184,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
         board.unmarkAsEmpty(cell);
     }
 
-    // master musi pockat na dokonceni ostatnich tasku, ktere vytvoril
+    // ceka se na dokonceni vsech mnou vytvorenych tasku
     #pragma omp taskwait
 }
 
