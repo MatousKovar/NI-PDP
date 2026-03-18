@@ -75,6 +75,8 @@ double MpiSolver::solve(const Board &initialBoard) {
     // SLAVE PROCESS
     else
     {
+        omp_set_num_threads(n_threads);
+
         while (true)
         {
             MPI_Status status;
@@ -96,7 +98,7 @@ double MpiSolver::solve(const Board &initialBoard) {
                 {
                     #pragma omp single
                     {
-                        solveDFS(state.board, 0, 1, 2);
+                        solveDFS(state.board, state.start_idx, state.start_piece_id, 0);
                     }
                 }
 
@@ -150,7 +152,7 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
     {
         board.markAsEmpty(cell);
 
-        if (depth < z) // prepinani mezi sekvencnim a vicevlaknovym vetvenim, z by mela byt mala konstanta - napr 2, at se vytvori dost tasku, ktere budou vypocetne narocne, ne naopak
+        if (depth < max_depth) // prepinani mezi sekvencnim a vicevlaknovym vetvenim, z by mela byt mala konstanta - napr 2, at se vytvori dost tasku, ktere budou vypocetne narocne, ne naopak
         {
             #pragma omp task shared(best_cost, best_board) // predavame globalni promenne do tasku
             solveDFS(board, cell + 1, piece_id, depth + 1);
@@ -171,7 +173,7 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                if (depth < z)
+                if (depth < max_depth)
                 {
                     #pragma omp task shared(best_cost, best_board)
                     solveDFS(board, cell + 1, piece_id, depth + 1); // Vytvoříme úkol
@@ -191,7 +193,7 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
 
-                if (depth < z)
+                if (depth < max_depth)
                 {
                     #pragma omp task shared(best_cost, best_board)
                     solveDFS(board, cell + 1, piece_id, depth + 1);
@@ -210,7 +212,7 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
         }
 
         board.markAsEmpty(cell);
-        if (depth < z)
+        if (depth < max_depth)
         {
             #pragma omp task shared(best_cost, best_board)
             solveDFS(board, cell + 1, piece_id, depth + 1);
@@ -358,7 +360,8 @@ SearchState MpiSolver::unpackState(const int *buffer, const Board &original_boar
     s.start_piece_id = buffer[1];
     s.board.setCurrentCost(buffer[2]);
     s.board.setRemainingPosSum(buffer[3]);
-    best_cost = buffer[4];
+    if (buffer[4] > best_cost)
+        best_cost = buffer[4];
 
     int size = original_board.getSize();
     for (int i = 0; i < size; ++i)

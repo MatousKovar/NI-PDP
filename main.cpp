@@ -16,15 +16,16 @@ struct ProgramConfig {
     std::string solver_type;
     int z_constant = 0;
     int num_threads = 1;
+    int max_depth = 1;
 };
 
 
 bool parseArguments(int argc, char *argv[], ProgramConfig &config, int world_rank) {
-    if (argc < 3 || argc > 5) {
+    if (argc < 3 || argc > 6) {
         if (world_rank == 0) {
             std::cerr << "Chyba: Spatny pocet argumentu!\n";
             std::cerr << "Pouziti (sekvencni): " << argv[0] << " <cesta> sequential\n";
-            std::cerr << "Pouziti (MPI):       " << argv[0] << " <cesta> mpi <z_konstanta>\n";
+            std::cerr << "Pouziti (MPI):       " << argv[0] << " <cesta> mpi <z_konstanta> <pocet_vlaken> <maximalni_zanoreni>\n";
             std::cerr << "Pouziti (OpenMP):    " << argv[0] << " <cesta> <omp/omptask> <z_konstanta> <pocet_vlaken>\n";
         }
         return false;
@@ -35,8 +36,10 @@ bool parseArguments(int argc, char *argv[], ProgramConfig &config, int world_ran
 
     try {
         if (config.solver_type == "mpi") {
-            if (argc != 4) throw std::invalid_argument("Pro MPI zadejte presne 4 argumenty.");
+            if (argc != 6) throw std::invalid_argument("Pro MPI zadejte presne 4 argumenty <cesta> mpi <z_konstanta> <pocet_vlaken> <maximalni_zanoreni>\n");
             config.z_constant = std::stoi(argv[3]);
+            config.num_threads = std::stoi(argv[4]);
+            config.max_depth = std::stoi(argv[5]);
             if (config.z_constant <= 0) throw std::invalid_argument("Konstanta 'z' musi byt kladna.");
         }
         else if (config.solver_type == "omp" || config.solver_type == "omptask") {
@@ -91,7 +94,7 @@ double runSolver(const ProgramConfig& config, const Board& board, int world_rank
     }
     else if (config.solver_type == "mpi") {
         // MPI solver spouštějí všechny procesy
-        MpiSolver solver(config.num_threads, config.z_constant, world_rank, world_size);
+        MpiSolver solver(config.num_threads, world_rank,world_size, config.max_depth, config.z_constant);
         time_taken = solver.solve(board);
 
         if (world_rank == 0) {

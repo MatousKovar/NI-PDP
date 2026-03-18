@@ -18,10 +18,13 @@ public:
     long long calls_counter = 0;
     int world_rank;
     int world_size;
+    int max_depth;
     volatile int best_cost;
     Board best_board;
 
-    MpiSolver(int n_threads, int z, int world_rank, int world_size) : n_threads(n_threads), z(z), world_rank(world_rank), world_size(world_size) {};
+    MpiSolver(int n_threads, int world_rank, int world_size,int max_depth = 2,int z = 40) : global_best(0), n_threads(n_threads), z(z), world_rank(world_rank),
+                                                                         world_size(world_size), max_depth(max_depth),
+                                                                         best_cost(0) {};
     double solve(const Board& initialBoard);
 
 private:
