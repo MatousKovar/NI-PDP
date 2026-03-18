@@ -64,6 +64,8 @@ public:
     void setCurrentCost(int cost) { current_cost = cost; }
     int getStateAt(int idx) const { return state[idx]; }
     void setStateAt(int idx, int val) { state[idx] = val; }
+    const std::vector<char>& getPieceTypes() const { return piece_types; }
+    void setPieceTypes(const std::vector<char>& types) { piece_types = types; }
 
     // Pro ořezávání: current_cost + remaining_pos_sum, kdyby se podarilo zakryt vsechny zaporne a zadne kladne
     int getTheoreticalMaxPossibleCost() const;

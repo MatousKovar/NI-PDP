@@ -12,10 +12,10 @@ double MpiSolver::solve(const Board &initialBoard) {
     calls_counter = 0;
 
     // buffery pro komunikaci
-    int work_buffer_size = 5 + initialBoard.getSize(); // viz pack_state
+    int work_buffer_size = 5 + 2*initialBoard.getSize(); // viz pack_state
     std::vector<int> work_buffer(work_buffer_size);
 
-    int result_buffer_size = 1 + initialBoard.getSize();
+    int result_buffer_size = 1 + 2*initialBoard.getSize();
     std::vector<long long> result_buffer(result_buffer_size);
 
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -56,6 +56,14 @@ double MpiSolver::solve(const Board &initialBoard) {
                 for (int i = 0; i < initialBoard.getSize(); ++i)
                     best_board.setStateAt(i, (int)result_buffer[1 + i]);
                 best_board.setCurrentCost(best_cost);
+
+                std::vector<char> pt;
+                for (int i = 0; i < initialBoard.getSize(); ++i) {
+                    char c = (char)result_buffer[1 + initialBoard.getSize() + i];
+                    if (c != 0) pt.push_back(c);
+                    else break;
+                }
+                best_board.setPieceTypes(pt);
             }
 
             // Pokud máme další práci, pošleme ji
@@ -106,6 +114,12 @@ double MpiSolver::solve(const Board &initialBoard) {
                 result_buffer[0] = best_cost;
                 for (int i = 0; i < initialBoard.getSize(); ++i)
                     result_buffer[1 + i] = best_board.getStateAt(i);
+
+                // pridavani oznaceni pismenek
+                const auto& pt = best_board.getPieceTypes();
+                for (int i = 0; i < initialBoard.getSize(); ++i) {
+                    result_buffer[1 + initialBoard.getSize() + i] = (i < pt.size()) ? pt[i] : 0;
+                }
 
                 // Odesíláme výsledek
                 MPI_Send(result_buffer.data(), result_buffer_size, MPI_LONG_LONG, 0, TAG_RESULT, MPI_COMM_WORLD);
@@ -349,6 +363,12 @@ void MpiSolver::packState(const SearchState &state, int *buffer) {
     int size = state.board.getSize();
     for (int i = 0; i < size; ++i)
         buffer[5 + i] = state.board.getStateAt(i);
+
+    const auto& pt = state.board.getPieceTypes();
+    for (int i = 0; i < size; ++i)
+    {
+        buffer[5 + size + i] = (i < pt.size()) ? pt[i] : 0;
+    }
 }
 
 SearchState MpiSolver::unpackState(const int *buffer, const Board &original_board)
@@ -367,5 +387,13 @@ SearchState MpiSolver::unpackState(const int *buffer, const Board &original_boar
     for (int i = 0; i < size; ++i)
         s.board.setStateAt(i, buffer[5 + i]);
 
+    std::vector<char> pt;
+    for (int i = 0; i < size; ++i) {
+        char c = (char)buffer[5 + size + i];
+        if (c != 0) pt.push_back(c);
+        else break;
+    }
+
+    s.board.setPieceTypes(pt);
     return s;
 }
