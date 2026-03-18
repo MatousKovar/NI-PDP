@@ -158,7 +158,7 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
             solveDFS(board, cell + 1, piece_id, depth + 1);
         }
         else
-            solveDFSSeq(board, cell + 1, piece_id);
+            solveDFSSeq(board, cell + 1, piece_id );
         board.unmarkAsEmpty(cell);
 
         if (best_cost == board.getTrivialUpperBound())
@@ -176,10 +176,10 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
                 if (depth < max_depth)
                 {
                     #pragma omp task shared(best_cost, best_board)
-                    solveDFS(board, cell + 1, piece_id, depth + 1); // Vytvoříme úkol
+                    solveDFS(board, cell + 1, piece_id + 1, depth + 1); // Vytvoříme úkol
                 }
                 else
-                    solveDFSSeq(board, cell + 1, piece_id); // Jdeme do sekvence
+                    solveDFSSeq(board, cell + 1, piece_id + 1 ); // Jdeme do sekvence
 
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
@@ -196,10 +196,10 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
                 if (depth < max_depth)
                 {
                     #pragma omp task shared(best_cost, best_board)
-                    solveDFS(board, cell + 1, piece_id, depth + 1);
+                    solveDFS(board, cell + 1, piece_id+1, depth + 1);
                 }
                 else
-                    solveDFSSeq(board, cell + 1, piece_id);
+                    solveDFSSeq(board, cell + 1, piece_id + 1);
 
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
@@ -269,7 +269,7 @@ void MpiSolver::solveDFSSeq(Board &board, int start_idx, int piece_id)
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id);
+                solveDFSSeq(board, cell + 1, piece_id+1);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -281,7 +281,7 @@ void MpiSolver::solveDFSSeq(Board &board, int start_idx, int piece_id)
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id);
+                solveDFSSeq(board, cell + 1, piece_id+1);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }

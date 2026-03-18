@@ -52,7 +52,7 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id);
+                solveDFSSeq(board, cell + 1, piece_id + 1);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -64,7 +64,7 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id);
+                solveDFSSeq(board, cell + 1, piece_id + 1);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -138,10 +138,10 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
                 if (depth < z)
                 {
                     #pragma omp task shared(best_cost, best_board)
-                    solveDFS(board, cell + 1, piece_id, depth + 1); // Vytvoříme úkol
+                    solveDFS(board, cell + 1, piece_id + 1, depth + 1); // Vytvoříme úkol
                 }
                 else
-                    solveDFSSeq(board, cell + 1, piece_id); // Jdeme do sekvence
+                    solveDFSSeq(board, cell + 1, piece_id + 1); // Jdeme do sekvence
 
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
@@ -158,10 +158,10 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
                 if (depth < z)
                 {
                     #pragma omp task shared(best_cost, best_board)
-                    solveDFS(board, cell + 1, piece_id, depth + 1);
+                    solveDFS(board, cell + 1, piece_id + 1, depth + 1);
                 }
                 else
-                    solveDFSSeq(board, cell + 1, piece_id);
+                    solveDFSSeq(board, cell + 1, piece_id + 1);
 
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
