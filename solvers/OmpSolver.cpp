@@ -12,6 +12,7 @@ double OmpSolver::solve(const Board &initialBoard) {
     auto start_time = std::chrono::high_resolution_clock::now();
 
     std::vector<SearchState> queue = generateStartingBoards(initialBoard);
+
     std::cout << "BFS finished" << std::endl;
 
     #pragma omp parallel for schedule(dynamic,1)
@@ -23,9 +24,6 @@ double OmpSolver::solve(const Board &initialBoard) {
         long long local_calls = 0;
 
         solveDFS(local_board, local_start, local_piece,local_calls);
-
-        // #pragma omp atomic
-        // calls_counter += local_calls;
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -122,19 +120,18 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
 
 
 /**
- *
- * @param originalBoard kopie originalni desky
+ *Fronta se plni tak ze se vzdy z aktualniho zpracovavaneho stavu vlozi vsechny moznosti do fronty a pokud presahnou limit, tak se fronta vraci
  * @return vraci vektor obsahujici SearchState - trojice (deska, idx na kterem zacinam hledat, a id posledniho polozeneho dilku)
  */
 std::vector<SearchState> OmpSolver::generateStartingBoards(const Board &originalBoard) const {
     std::vector<SearchState> queue;
-    int limit = n_threads * z;
+    size_t limit = n_threads * z;
 
     queue.push_back({originalBoard, 0, 1});
 
     // fronta je realizována jako vektor
     // head je aktuální vrchol fronty
-    // ve fronte za indexem head uz jsou tedy jen listy
+    // ve fronte za indexem head uz jsou tedy jen (aktualni) listy
     size_t head = 0;
 
     while ((queue.size() - head) < limit && head < queue.size())
@@ -148,7 +145,7 @@ std::vector<SearchState> OmpSolver::generateStartingBoards(const Board &original
 
         int cell = currentBoard.getNextFreeCell(start_idx);
 
-        // deska je uz plna
+        // deska je uz plna, musim teda vratit aktualne zpracovavanej stav do fronty!!
         if (cell == -1)
         {
             queue.push_back(current_state);
