@@ -15,7 +15,7 @@ public:
     int global_best;
     int n_threads;
     int z;
-    int calls_counter = 0;
+    long long calls_counter = 0;
     int world_rank;
     int world_size;
     volatile int best_cost;
@@ -29,7 +29,8 @@ private:
     const int TAG_END = 2; // master posila pokyn k ukonceni
     const int TAG_RESULT = 3; // slave posila masterovi vysledky
 
-    void solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls);
+    void solveDFS(Board board, int start_idx, int piece_id, int depth);
+    void solveDFSSeq(Board &board, int start_idx, int piece_id);
     std::vector<SearchState> generateStartingBoards(const Board& original_board) const;
 
     void packState(const SearchState &state, int *buffer);

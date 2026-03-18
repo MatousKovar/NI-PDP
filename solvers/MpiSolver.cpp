@@ -4,32 +4,29 @@
 
 #include "MpiSolver.h"
 #include <vector>
+#include <omp.h>
 
 double MpiSolver::solve(const Board &initialBoard) {
     best_cost = -1;
     best_board = initialBoard;
     calls_counter = 0;
 
-    // =========================================================
-    // ALOKACE BUFFERŮ POMOCÍ STD::VECTOR (RAII)
-    // =========================================================
-    int work_buffer_size = 5 + initialBoard.getSize();
+    // buffery pro komunikaci
+    int work_buffer_size = 5 + initialBoard.getSize(); // viz pack_state
     std::vector<int> work_buffer(work_buffer_size);
 
-    int result_buffer_size = 3 + initialBoard.getSize();
+    int result_buffer_size = 1 + initialBoard.getSize();
     std::vector<long long> result_buffer(result_buffer_size);
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    // =========================================================
     // MASTER PROCESS
-    // =========================================================
     if (world_rank == 0)
     {
         std::vector<SearchState> queue = generateStartingBoards(initialBoard);
 
         int active_slaves = 0;
-        int next_task = 0;
+        size_t next_task = 0;
 
         // Prvotní rozdání práce
         for (int i = 1; i < world_size && next_task < queue.size(); ++i)
@@ -49,9 +46,6 @@ double MpiSolver::solve(const Board &initialBoard) {
             int sender = status.MPI_SOURCE;
 
             long long received_cost = result_buffer[0];
-            long long received_calls = result_buffer[1];
-
-            calls_counter += received_calls;
 
             // Update nejlepšího řešení a desky
             if (received_cost > best_cost)
@@ -60,12 +54,12 @@ double MpiSolver::solve(const Board &initialBoard) {
 
                 // Slave nám poslal i tu desku, tak si ji uložme
                 for (int i = 0; i < initialBoard.getSize(); ++i)
-                    best_board.setStateAt(i, (int)result_buffer[2 + i]);
+                    best_board.setStateAt(i, (int)result_buffer[1 + i]);
                 best_board.setCurrentCost(best_cost);
             }
 
             // Pokud máme další práci, pošleme ji
-            if (next_task < (int)queue.size())
+            if (next_task < queue.size())
             {
                 packState(queue[next_task], work_buffer.data());
                 MPI_Send(work_buffer.data(), work_buffer_size, MPI_INT, sender, TAG_WORK, MPI_COMM_WORLD);
@@ -78,9 +72,7 @@ double MpiSolver::solve(const Board &initialBoard) {
             }
         }
     }
-    // =========================================================
     // SLAVE PROCESS
-    // =========================================================
     else
     {
         while (true)
@@ -96,18 +88,22 @@ double MpiSolver::solve(const Board &initialBoard) {
             if (status.MPI_TAG == TAG_WORK)
             {
                 SearchState state = unpackState(work_buffer.data(), initialBoard);
-                long long local_calls = 0;
 
                 best_board = state.board;
 
                 // Spuštění sekvenční rekurze pro tento podstrom
-                solveDFS(state.board, state.start_idx, state.start_piece_id, local_calls);
+                #pragma omp parallel
+                {
+                    #pragma omp single
+                    {
+                        solveDFS(state.board, 0, 1, 2);
+                    }
+                }
 
                 // Balení a odeslání výsledku ZPĚT Masterovi
                 result_buffer[0] = best_cost;
-                result_buffer[1] = local_calls;
                 for (int i = 0; i < initialBoard.getSize(); ++i)
-                    result_buffer[2 + i] = best_board.getStateAt(i);
+                    result_buffer[1 + i] = best_board.getStateAt(i);
 
                 // Odesíláme výsledek
                 MPI_Send(result_buffer.data(), result_buffer_size, MPI_LONG_LONG, 0, TAG_RESULT, MPI_COMM_WORLD);
@@ -115,10 +111,8 @@ double MpiSolver::solve(const Board &initialBoard) {
         }
     }
 
-    // Všichni na sebe slušně počkají, než se procesy rozeběhnou do mainu
+    // Všichni na sebe slušně počkají
     MPI_Barrier(MPI_COMM_WORLD);
-
-    // ŽÁDNÉ DELETE[]! Vector si po sobě uklidí sám při vyskočení z této metody.
 
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end_time - start_time;
@@ -126,13 +120,9 @@ double MpiSolver::solve(const Board &initialBoard) {
     return elapsed.count();
 }
 
-void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &local_calls) {
-    local_calls += 1;
-    if (best_cost == board.getTrivialUpperBound())
-        return;
-
-    if (board.getTheoreticalMaxPossibleCost() <= best_cost)
-        return;
+void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2) {
+    if (best_cost == board.getTrivialUpperBound()) return;
+    if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
 
     int cell = board.getNextFreeCell(start_idx);
 
@@ -140,8 +130,14 @@ void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
     {
         if (board.getCurrentCost() > best_cost)
         {
-            best_board = board;
-            best_cost = board.getCurrentCost();
+            #pragma omp critical // < ------------------------------ KRITICKA SEKCE - novinka oproti sekvencnimu, pristup ke sdilene promenne
+            {
+                if (board.getCurrentCost() > best_cost)
+                {
+                    best_cost = board.getCurrentCost();
+                    best_board = board;
+                }
+            }
         }
         return;
     }
@@ -151,7 +147,7 @@ void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
     if (cell_val > 0)
     {
         board.markAsEmpty(cell);
-        solveDFS(board, cell + 1, piece_id, local_calls);
+        solveDFS(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
 
         if (best_cost == board.getTrivialUpperBound()) return;
@@ -161,7 +157,7 @@ void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFS(board, cell + 1, piece_id, local_calls);
+                solveDFS(board, cell + 1, piece_id);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -173,7 +169,7 @@ void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFS(board, cell + 1, piece_id, local_calls);
+                solveDFS(board, cell + 1, piece_id);
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -181,7 +177,75 @@ void MpiSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
         if (best_cost == board.getTrivialUpperBound()) return;
 
         board.markAsEmpty(cell);
-        solveDFS(board, cell + 1, piece_id, local_calls);
+        solveDFS(board, cell + 1, piece_id);
+        board.unmarkAsEmpty(cell);
+    }
+}
+
+void MpiSolver::solveDFSSeq(Board &board, int start_idx, int piece_id)
+{
+    if (best_cost == board.getTrivialUpperBound()) return;
+    if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
+
+    int cell = board.getNextFreeCell(start_idx);
+
+    // Konec desky - zkontrolujeme, zda máme nový rekord a navrat
+    if (cell == -1)
+    {
+        // poprve kontrola bez zamku aby se vlakna nezdrzovala, podruhe kontrola i prepis v kriticke sekci
+        if (board.getCurrentCost() > best_cost)
+        {
+            #pragma omp critical // <-----------------------------ZDE ZMENA
+            {
+                if (board.getCurrentCost() > best_cost)
+                {
+                    best_cost = board.getCurrentCost();
+                    best_board = board;
+                }
+            }
+        }
+        return;
+    }
+
+    // ------------ZBYTEK KODU KLASICKY SEKVENCNI-----------------------
+    // Branching
+    int cell_val = board.getCellValue(cell);
+
+    // Hodnota na volnem policku je kladna
+    if (cell_val > 0)
+    {
+        board.markAsEmpty(cell);
+        solveDFSSeq(board, cell + 1, piece_id);
+        board.unmarkAsEmpty(cell);
+
+        if (best_cost == board.getTrivialUpperBound()) return;
+
+        for (int i = 0; i < 12; ++i)
+        {
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
+            {
+                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
+                solveDFSSeq(board, cell + 1, piece_id);
+                board.removePiece(cell, Pieces::VARIANTS[i]);
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < 12; ++i)
+        {
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
+            {
+                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
+                solveDFSSeq(board, cell + 1, piece_id);
+                board.removePiece(cell, Pieces::VARIANTS[i]);
+            }
+        }
+
+        if (best_cost == board.getTrivialUpperBound()) return;
+
+        board.markAsEmpty(cell);
+        solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
     }
 }
@@ -243,7 +307,8 @@ void MpiSolver::packState(const SearchState &state, int *buffer) {
         buffer[5 + i] = state.board.getStateAt(i);
 }
 
-SearchState MpiSolver::unpackState(const int *buffer, const Board &original_board) {
+SearchState MpiSolver::unpackState(const int *buffer, const Board &original_board)
+{
     SearchState s;
     s.board = original_board;
 
