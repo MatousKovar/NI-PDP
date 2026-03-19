@@ -168,10 +168,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
         }
 
         if (best_cost == board.getTrivialUpperBound())
-        {
-            #pragma omp taskwait
             return;
-        }
 
         board.markAsEmpty(cell);
         if (depth < z)

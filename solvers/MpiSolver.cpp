@@ -176,10 +176,7 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
         board.unmarkAsEmpty(cell);
 
         if (best_cost == board.getTrivialUpperBound())
-        {
-            #pragma omp taskwait // Kdyz koncime predcasne, musime pockat nez se ukonci vsechny tasky v tomto vlaknu - sdileny zasobnik
             return;
-        }
 
 
         for (int i = 0; i < 12; ++i) // pokladani dilku
@@ -220,10 +217,7 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
         }
 
         if (best_cost == board.getTrivialUpperBound())
-        {
-            #pragma omp taskwait
             return;
-        }
 
         board.markAsEmpty(cell);
         if (depth < max_depth)
