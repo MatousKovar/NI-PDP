@@ -3,6 +3,7 @@
 //
 
 #include "OmpSolver.h"
+#include <algorithm>
 
 double OmpSolver::solve(const Board &initialBoard) {
     best_cost = -1;
@@ -12,6 +13,13 @@ double OmpSolver::solve(const Board &initialBoard) {
     auto start_time = std::chrono::high_resolution_clock::now();
 
     std::vector<SearchState> queue = generateStartingBoards(initialBoard);
+
+    std::sort(queue.begin(), queue.end(),
+        [](const SearchState &a, const SearchState &b) {
+            // Chceme sestupné řazení (větší teoretické maximum jde první)
+            return a.board.getTheoreticalMaxPossibleCost() > b.board.getTheoreticalMaxPossibleCost();
+        }
+    );
 
     std::cout << "BFS finished" << std::endl;
 
