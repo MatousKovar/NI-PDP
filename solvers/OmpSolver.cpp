@@ -16,7 +16,6 @@ double OmpSolver::solve(const Board &initialBoard) {
 
     std::sort(queue.begin(), queue.end(),
         [](const SearchState &a, const SearchState &b) {
-            // Chceme sestupné řazení (větší teoretické maximum jde první)
             return a.board.getTheoreticalMaxPossibleCost() > b.board.getTheoreticalMaxPossibleCost();
         }
     );
