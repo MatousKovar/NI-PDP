@@ -123,11 +123,7 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
             solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
 
-        if (best_cost == board.getTrivialUpperBound())
-        {
-            #pragma omp taskwait // Kdyz koncime predcasne, musime pockat nez se ukonci vsechny tasky v tomto vlaknu - sdileny zasobnik
-            return;
-        }
+        if (best_cost == board.getTrivialUpperBound()) return;
 
 
         for (int i = 0; i < 12; ++i) // pokladani dilku
@@ -184,7 +180,6 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
     // ceka se na dokonceni vsech mnou vytvorenych tasku
     #pragma omp taskwait
 }
-
 
 double OmpTaskSolver::solve(const Board& initial_board) {
     best_cost = -1;
