@@ -93,10 +93,13 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
         // Následně zkusíme všechny varianty dilku
         for (int i = 0; i < 12; ++i)
         {
+            if (best_cost == board.getTrivialUpperBound()) break;
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFS(board, cell + 1, piece_id+1, local_calls);
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    solveDFS(board, cell + 1, piece_id + 1, local_calls);
+                }
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -109,8 +112,11 @@ void OmpSolver::solveDFS(Board &board, int start_idx, int piece_id, long long &l
         {
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
+                if (best_cost == board.getTrivialUpperBound()) break;
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFS(board, cell + 1, piece_id + 1, local_calls);
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    solveDFS(board, cell + 1, piece_id + 1, local_calls);
+                }
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }

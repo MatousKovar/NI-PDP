@@ -148,7 +148,11 @@ double MpiSolver::solve(const Board &initialBoard) {
 }
 
 
-void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2) {
+void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth) {
+    // Atomické přičtení (předpokládá, že calls_counter je globální proměnná třídy)
+    #pragma omp atomic
+    calls_counter++;
+
     if (best_cost == board.getTrivialUpperBound()) return;
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
 
@@ -159,7 +163,7 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
     {
         if (board.getCurrentCost() > best_cost)
         {
-            #pragma omp critical // < ------------------------------ KRITICKA SEKCE - novinka oproti sekvencnimu, pristup ke sdilene promenne
+            #pragma omp critical // < ------------------------------ KRITICKA SEKCE
             {
                 if (board.getCurrentCost() > best_cost)
                 {
@@ -178,32 +182,44 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
     {
         board.markAsEmpty(cell);
 
-        if (depth < max_depth) // prepinani mezi sekvencnim a vicevlaknovym vetvenim, z by mela byt mala konstanta - napr 2, at se vytvori dost tasku, ktere budou vypocetne narocne, ne naopak
-        {
-            #pragma omp task shared(best_cost, best_board) // predavame globalni promenne do tasku
-            solveDFS(board, cell + 1, piece_id, depth + 1);
+        // PROAKTIVNÍ KONTROLA PŘED ZANOŘENÍM
+        if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+            if (depth < max_depth) // Omezení hloubky tasků
+            {
+                #pragma omp task shared(best_cost, best_board)
+                solveDFS(board, cell + 1, piece_id, depth + 1);
+            }
+            else
+            {
+                long long local_calls = 0;
+                solveDFSSeq(board, cell + 1, piece_id);
+            }
         }
-        else
-            solveDFSSeq(board, cell + 1, piece_id );
         board.unmarkAsEmpty(cell);
 
-        if (best_cost == board.getTrivialUpperBound())
-            return;
-
+        if (best_cost == board.getTrivialUpperBound()) return;
 
         for (int i = 0; i < 12; ++i) // pokladani dilku
         {
+            if (best_cost == board.getTrivialUpperBound()) break; // RYCHLÝ ÚNIK
+
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                if (depth < max_depth)
-                {
-                    #pragma omp task shared(best_cost, best_board)
-                    solveDFS(board, cell + 1, piece_id + 1, depth + 1); // Vytvoříme úkol
-                }
-                else
-                    solveDFSSeq(board, cell + 1, piece_id + 1 ); // Jdeme do sekvence
 
+                // PROAKTIVNÍ KONTROLA PŘED ZANOŘENÍM
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    if (depth < max_depth)
+                    {
+                        #pragma omp task shared(best_cost, best_board)
+                        solveDFS(board, cell + 1, piece_id + 1, depth + 1);
+                    }
+                    else
+                    {
+                        long long local_calls = 0;
+                        solveDFSSeq(board, cell + 1, piece_id + 1);
+                    }
+                }
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -212,42 +228,56 @@ void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2
     {
         for (int i = 0; i < 12; ++i)
         {
+            if (best_cost == board.getTrivialUpperBound()) break; // RYCHLÝ ÚNIK
+
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
 
-                if (depth < max_depth)
-                {
-                    #pragma omp task shared(best_cost, best_board)
-                    solveDFS(board, cell + 1, piece_id+1, depth + 1);
+                // PROAKTIVNÍ KONTROLA PŘED ZANOŘENÍM
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    if (depth < max_depth)
+                    {
+                        #pragma omp task shared(best_cost, best_board)
+                        solveDFS(board, cell + 1, piece_id + 1, depth + 1);
+                    }
+                    else
+                    {
+                        long long local_calls = 0;
+                        solveDFSSeq(board, cell + 1, piece_id + 1);
+                    }
                 }
-                else
-                    solveDFSSeq(board, cell + 1, piece_id + 1);
-
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
 
-        if (best_cost == board.getTrivialUpperBound())
-            return;
+        if (best_cost == board.getTrivialUpperBound()) return;
 
         board.markAsEmpty(cell);
-        if (depth < max_depth)
-        {
-            #pragma omp task shared(best_cost, best_board)
-            solveDFS(board, cell + 1, piece_id, depth + 1);
+        // PROAKTIVNÍ KONTROLA PŘED ZANOŘENÍM
+        if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+            if (depth < max_depth)
+            {
+                #pragma omp task shared(best_cost, best_board)
+                solveDFS(board, cell + 1, piece_id, depth + 1);
+            }
+            else
+            {
+                long long local_calls = 0;
+                solveDFSSeq(board, cell + 1, piece_id);
+            }
         }
-        else
-            solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
     }
 
-    // ceka se na dokonceni vsech mnou vytvorenych tasku
+    // TADY TO NESMÍ CHYBĚT! Bariéra na konci uzlu.
     #pragma omp taskwait
 }
 
+// Přidán parametr local_calls pro bezzámkové počítání
 void MpiSolver::solveDFSSeq(Board &board, int start_idx, int piece_id)
 {
+
     if (best_cost == board.getTrivialUpperBound()) return;
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
 
@@ -279,17 +309,25 @@ void MpiSolver::solveDFSSeq(Board &board, int start_idx, int piece_id)
     if (cell_val > 0)
     {
         board.markAsEmpty(cell);
-        solveDFSSeq(board, cell + 1, piece_id);
+        // PROAKTIVNÍ KONTROLA
+        if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+            solveDFSSeq(board, cell + 1, piece_id);
+        }
         board.unmarkAsEmpty(cell);
 
         if (best_cost == board.getTrivialUpperBound()) return;
 
         for (int i = 0; i < 12; ++i)
         {
+            if (best_cost == board.getTrivialUpperBound()) break; // RYCHLÝ ÚNIK
+
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id+1);
+                // PROAKTIVNÍ KONTROLA
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    solveDFSSeq(board, cell + 1, piece_id + 1);
+                }
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -298,10 +336,15 @@ void MpiSolver::solveDFSSeq(Board &board, int start_idx, int piece_id)
     {
         for (int i = 0; i < 12; ++i)
         {
+            if (best_cost == board.getTrivialUpperBound()) break;
+
             if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
             {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id+1);
+                // PROAKTIVNÍ KONTROLA
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    solveDFSSeq(board, cell + 1, piece_id + 1);
+                }
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
@@ -309,7 +352,10 @@ void MpiSolver::solveDFSSeq(Board &board, int start_idx, int piece_id)
         if (best_cost == board.getTrivialUpperBound()) return;
 
         board.markAsEmpty(cell);
-        solveDFSSeq(board, cell + 1, piece_id);
+        // PROAKTIVNÍ KONTROLA
+        if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+            solveDFSSeq(board, cell + 1, piece_id);
+        }
         board.unmarkAsEmpty(cell);
     }
 }
