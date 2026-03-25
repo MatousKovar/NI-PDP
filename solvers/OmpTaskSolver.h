@@ -24,7 +24,7 @@ public:
     long long calls_counter;
     int getBestCost() const { return best_cost; }
     Board getBestBoard() const { return best_board; }
-    OmpTaskSolver(int z) : best_cost(-1),  z(z),calls_counter(0) {}
+    OmpTaskSolver(int z) : z(z),  best_cost(-1),calls_counter(0) {}
 
     // Hlavní metoda, kterou zavoláte z mainu
     double solve(const Board& initial_board);

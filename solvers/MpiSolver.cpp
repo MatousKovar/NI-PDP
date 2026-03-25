@@ -32,6 +32,7 @@ double MpiSolver::solve(const Board &initialBoard) {
         for (int i = 1; i < world_size && next_task < queue.size(); ++i)
         {
             packState(queue[next_task], work_buffer.data());
+            std::cout << "Master sent initial task" << std::endl;
             MPI_Send(work_buffer.data(), work_buffer_size, MPI_INT, i, TAG_WORK, MPI_COMM_WORLD);
             next_task++;
             active_slaves++;
@@ -42,6 +43,7 @@ double MpiSolver::solve(const Board &initialBoard) {
             MPI_Status status;
 
             // Čekáme na VÝSLEDEK od kteréhokoliv Slave procesu
+            std::cout << "Master received result" << std::endl;
             MPI_Recv(result_buffer.data(), result_buffer_size, MPI_LONG_LONG, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
             int sender = status.MPI_SOURCE;
 

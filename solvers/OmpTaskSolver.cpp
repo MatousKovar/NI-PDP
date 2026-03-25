@@ -6,76 +6,6 @@
 #include <omp.h>
 #include <chrono>
 
-/**
- * Klasicke sekvencni, jedine co, tak kdyz pristupuju k atributum oznacenym jako SHARED, tak musim pres kritisckou sekci
- * @param board - predava se referenci protoze tady uz se bezi sekvencne, nemusi se resit preisovani
- */
-void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
-    if (best_cost == board.getTrivialUpperBound()) return;
-    if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
-
-    int cell = board.getNextFreeCell(start_idx);
-
-    // Konec desky - zkontrolujeme, zda máme nový rekord a navrat
-    if (cell == -1)
-    {
-        // poprve kontrola bez zamku aby se vlakna nezdrzovala, podruhe kontrola i prepis v kriticke sekci
-        if (board.getCurrentCost() > best_cost)
-        {
-            #pragma omp critical // <-----------------------------ZDE ZMENA
-            {
-                if (board.getCurrentCost() > best_cost)
-                {
-                    best_cost = board.getCurrentCost();
-                    best_board = board;
-                }
-            }
-        }
-        return;
-    }
-
-    // ------------ZBYTEK KODU KLASICKY SEKVENCNI-----------------------
-    // Branching
-    int cell_val = board.getCellValue(cell);
-
-    // Hodnota na volnem policku je kladna
-    if (cell_val > 0)
-    {
-        board.markAsEmpty(cell);
-        solveDFSSeq(board, cell + 1, piece_id);
-        board.unmarkAsEmpty(cell);
-
-        if (best_cost == board.getTrivialUpperBound()) return;
-
-        for (int i = 0; i < 12; ++i)
-        {
-            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
-            {
-                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id + 1);
-                board.removePiece(cell, Pieces::VARIANTS[i]);
-            }
-        }
-    }
-    else
-    {
-        for (int i = 0; i < 12; ++i)
-        {
-            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
-            {
-                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                solveDFSSeq(board, cell + 1, piece_id + 1);
-                board.removePiece(cell, Pieces::VARIANTS[i]);
-            }
-        }
-
-        if (best_cost == board.getTrivialUpperBound()) return;
-
-        board.markAsEmpty(cell);
-        solveDFSSeq(board, cell + 1, piece_id);
-        board.unmarkAsEmpty(cell);
-    }
-}
 
 
 /**
@@ -85,20 +15,19 @@ void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
  */
 void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth)
 {
+    // Donutíme vlákno načíst aktuální best_cost z paměti
+    #pragma omp flush(best_cost)
+
     if (best_cost == board.getTrivialUpperBound()) return;
     if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
 
     int cell = board.getNextFreeCell(start_idx);
 
-    // Konec desky - kontrola a vraceni v rekurzi
-    if (cell == -1)
-    {
-        if (board.getCurrentCost() > best_cost)
-        {
-            #pragma omp critical // < ------------------------------ KRITICKA SEKCE - novinka oproti sekvencnimu, pristup ke sdilene promenne
+    if (cell == -1) {
+        if (board.getCurrentCost() > best_cost) {
+            #pragma omp critical
             {
-                if (board.getCurrentCost() > best_cost)
-                {
+                if (board.getCurrentCost() > best_cost) {
                     best_cost = board.getCurrentCost();
                     best_board = board;
                 }
@@ -109,76 +38,141 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
 
     int cell_val = board.getCellValue(cell);
 
-    //VETVENI PODLE HODNOTY POLICKA
-    if (cell_val > 0)
-    {
+    if (cell_val > 0) {
         board.markAsEmpty(cell);
-
-        if (depth < z) // prepinani mezi sekvencnim a vicevlaknovym vetvenim, z by mela byt mala konstanta - napr 2, at se vytvori dost tasku, ktere budou vypocetne narocne, ne naopak
-        {
-            #pragma omp task shared(best_cost, best_board) // predavame globalni promenne do tasku
-            solveDFS(board, cell + 1, piece_id, depth + 1);
+        // PROAKTIVNÍ KONTROLA PŘED ZANOŘENÍM
+        if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+            if (depth < z) {
+                #pragma omp task shared(best_cost, best_board)
+                solveDFS(board, cell + 1, piece_id, depth + 1);
+            } else {
+                solveDFSSeq(board, cell + 1, piece_id);
+            }
         }
-        else
-            solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
 
         if (best_cost == board.getTrivialUpperBound()) return;
 
-
-        for (int i = 0; i < 12; ++i) // pokladani dilku
-        {
-            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
-            {
+        for (int i = 0; i < 12; ++i) {
+            if (best_cost == board.getTrivialUpperBound()) break; // Rychlý únik z cyklu
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i])) {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
-                if (depth < z)
-                {
-                    #pragma omp task shared(best_cost, best_board)
-                    solveDFS(board, cell + 1, piece_id + 1, depth + 1); // Vytvoříme úkol
-                }
-                else
-                    solveDFSSeq(board, cell + 1, piece_id + 1); // Jdeme do sekvence
 
+                // PROAKTIVNÍ KONTROLA PŘED ZANOŘENÍM
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    if (depth < z) {
+                        #pragma omp task shared(best_cost, best_board)
+                        solveDFS(board, cell + 1, piece_id + 1, depth + 1);
+                    } else {
+                        solveDFSSeq(board, cell + 1, piece_id + 1);
+                    }
+                }
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
-    }
-    else
-    {
-        for (int i = 0; i < 12; ++i)
-        {
-            if (board.canPlacePiece(cell, Pieces::VARIANTS[i]))
-            {
+    } else {
+        for (int i = 0; i < 12; ++i) {
+            if (best_cost == board.getTrivialUpperBound()) break;
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i])) {
                 board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
 
-                if (depth < z)
-                {
-                    #pragma omp task shared(best_cost, best_board)
-                    solveDFS(board, cell + 1, piece_id + 1, depth + 1);
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    if (depth < z) {
+                        #pragma omp task shared(best_cost, best_board)
+                        solveDFS(board, cell + 1, piece_id + 1, depth + 1);
+                    } else {
+                        solveDFSSeq(board, cell + 1, piece_id + 1);
+                    }
                 }
-                else
-                    solveDFSSeq(board, cell + 1, piece_id + 1);
-
                 board.removePiece(cell, Pieces::VARIANTS[i]);
             }
         }
 
-        if (best_cost == board.getTrivialUpperBound())
-            return;
+        if (best_cost == board.getTrivialUpperBound()) return;
 
         board.markAsEmpty(cell);
-        if (depth < z)
-        {
-            #pragma omp task shared(best_cost, best_board)
-            solveDFS(board, cell + 1, piece_id, depth + 1);
+        if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+            if (depth < z) {
+                #pragma omp task shared(best_cost, best_board)
+                solveDFS(board, cell + 1, piece_id, depth + 1);
+            } else {
+                solveDFSSeq(board, cell + 1, piece_id);
+            }
         }
-        else
-            solveDFSSeq(board, cell + 1, piece_id);
         board.unmarkAsEmpty(cell);
     }
 
-    // ceka se na dokonceni vsech mnou vytvorenych tasku
     #pragma omp taskwait
+}
+
+/**
+ * Klasicke sekvencni, jedine co, tak kdyz pristupuju k atributum oznacenym jako SHARED, tak musim pres kritisckou sekci
+ * @param board - predava se referenci protoze tady uz se bezi sekvencne, nemusi se resit preisovani
+ */
+void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
+    // I sekvenční kód si musí občas zkontrolovat hlavní paměť
+    #pragma omp flush(best_cost)
+
+    if (best_cost == board.getTrivialUpperBound()) return;
+    if (board.getTheoreticalMaxPossibleCost() <= best_cost) return;
+
+    int cell = board.getNextFreeCell(start_idx);
+
+    if (cell == -1) {
+        if (board.getCurrentCost() > best_cost) {
+            #pragma omp critical
+            {
+                if (board.getCurrentCost() > best_cost) {
+                    best_cost = board.getCurrentCost();
+                    best_board = board;
+                }
+            }
+        }
+        return;
+    }
+
+    int cell_val = board.getCellValue(cell);
+
+    if (cell_val > 0) {
+        board.markAsEmpty(cell);
+        // PROAKTIVNÍ KONTROLA
+        if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+            solveDFSSeq(board, cell + 1, piece_id);
+        }
+        board.unmarkAsEmpty(cell);
+
+        if (best_cost == board.getTrivialUpperBound()) return;
+
+        for (int i = 0; i < 12; ++i) {
+            if (best_cost == board.getTrivialUpperBound()) break;
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i])) {
+                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    solveDFSSeq(board, cell + 1, piece_id + 1);
+                }
+                board.removePiece(cell, Pieces::VARIANTS[i]);
+            }
+        }
+    } else {
+        for (int i = 0; i < 12; ++i) {
+            if (best_cost == board.getTrivialUpperBound()) break;
+            if (board.canPlacePiece(cell, Pieces::VARIANTS[i])) {
+                board.placePiece(cell, Pieces::VARIANTS[i], piece_id);
+                if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+                    solveDFSSeq(board, cell + 1, piece_id + 1);
+                }
+                board.removePiece(cell, Pieces::VARIANTS[i]);
+            }
+        }
+
+        if (best_cost == board.getTrivialUpperBound()) return;
+
+        board.markAsEmpty(cell);
+        if (board.getTheoreticalMaxPossibleCost() > best_cost) {
+            solveDFSSeq(board, cell + 1, piece_id);
+        }
+        board.unmarkAsEmpty(cell);
+    }
 }
 
 double OmpTaskSolver::solve(const Board& initial_board) {
