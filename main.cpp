@@ -90,6 +90,7 @@ double runSolver(const ProgramConfig& config, const Board& board, int world_rank
             time_taken = solver.solve(board);
             best_cost = solver.best_cost;
             best_board = solver.best_board;
+            calls_counter = solver.calls_counter;
         }
     }
     else if (config.solver_type == "mpi") {

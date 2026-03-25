@@ -20,7 +20,7 @@ private:
 
 public:
     Board best_board;
-    int best_cost;
+    volatile int best_cost;
     long long calls_counter;
     int getBestCost() const { return best_cost; }
     Board getBestBoard() const { return best_board; }
