@@ -24,6 +24,7 @@ double MpiSolver::solve(const Board &initialBoard) {
     if (world_rank == 0)
     {
         std::vector<SearchState> queue = generateStartingBoards(initialBoard);
+        std::cout << "[MASTER] Vygenerovano " << queue.size() << " pocatecnich uloh." << std::endl;
 
         int active_slaves = 0;
         size_t next_task = 0;
@@ -32,7 +33,7 @@ double MpiSolver::solve(const Board &initialBoard) {
         for (int i = 1; i < world_size && next_task < queue.size(); ++i)
         {
             packState(queue[next_task], work_buffer.data());
-            std::cout << "Master sent initial task" << std::endl;
+            std::cout << "[MASTER] Zasilam pocatecni ulohu (ID: " << next_task << ") na Slave " << i << std::endl;
             MPI_Send(work_buffer.data(), work_buffer_size, MPI_INT, i, TAG_WORK, MPI_COMM_WORLD);
             next_task++;
             active_slaves++;
@@ -43,15 +44,16 @@ double MpiSolver::solve(const Board &initialBoard) {
             MPI_Status status;
 
             // Čekáme na VÝSLEDEK od kteréhokoliv Slave procesu
-            std::cout << "Master received result" << std::endl;
             MPI_Recv(result_buffer.data(), result_buffer_size, MPI_LONG_LONG, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
             int sender = status.MPI_SOURCE;
-
             long long received_cost = result_buffer[0];
+
+            std::cout << "[MASTER] Prijat vysledek (cost: " << received_cost << ") od Slave " << sender << std::endl;
 
             // Update nejlepšího řešení a desky
             if (received_cost > best_cost)
             {
+                std::cout << "[MASTER] *** Nove globalni maximum! *** Puvodni: " << best_cost << ", Nove: " << received_cost << std::endl;
                 best_cost = received_cost;
 
                 // Slave nám poslal i tu desku, tak si ji uložme
@@ -72,15 +74,18 @@ double MpiSolver::solve(const Board &initialBoard) {
             if (next_task < queue.size())
             {
                 packState(queue[next_task], work_buffer.data());
+                std::cout << "[MASTER] Zasilam dalsi ulohu (ID: " << next_task << ") na uvolneny Slave " << sender << std::endl;
                 MPI_Send(work_buffer.data(), work_buffer_size, MPI_INT, sender, TAG_WORK, MPI_COMM_WORLD);
                 next_task++;
             }
             else
             {
+                std::cout << "[MASTER] Prace dosla. Zasilam ukoncovaci signal na Slave " << sender << std::endl;
                 MPI_Send(work_buffer.data(), work_buffer_size, MPI_INT, sender, TAG_END, MPI_COMM_WORLD);
                 active_slaves--;
             }
         }
+        std::cout << "[MASTER] Vsichni Slave procesy ukonceny." << std::endl;
     }
     // SLAVE PROCESS
     else
@@ -94,11 +99,14 @@ double MpiSolver::solve(const Board &initialBoard) {
             // Čekáme na zadání práce od Mastera
             MPI_Recv(work_buffer.data(), work_buffer_size, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
-            if (status.MPI_TAG == TAG_END)
+            if (status.MPI_TAG == TAG_END) {
+                std::cout << "[SLAVE " << world_rank << "] Prijat ukoncovaci signal. Koncim smycku." << std::endl;
                 break;
+            }
 
             if (status.MPI_TAG == TAG_WORK)
             {
+                std::cout << "[SLAVE " << world_rank << "] Prijata nova uloha. Spoustim OpenMP vypocet..." << std::endl;
                 SearchState state = unpackState(work_buffer.data(), initialBoard);
 
                 best_board = state.board;
@@ -123,6 +131,7 @@ double MpiSolver::solve(const Board &initialBoard) {
                     result_buffer[1 + initialBoard.getSize() + i] = (i < pt.size()) ? pt[i] : 0;
                 }
 
+                std::cout << "[SLAVE " << world_rank << "] Vypocet dokoncen. Odesilam vysledek Masterovi." << std::endl;
                 // Odesíláme výsledek
                 MPI_Send(result_buffer.data(), result_buffer_size, MPI_LONG_LONG, 0, TAG_RESULT, MPI_COMM_WORLD);
             }
@@ -137,6 +146,7 @@ double MpiSolver::solve(const Board &initialBoard) {
 
     return elapsed.count();
 }
+
 
 void MpiSolver::solveDFS(Board board, int start_idx, int piece_id, int depth = 2) {
     if (best_cost == board.getTrivialUpperBound()) return;

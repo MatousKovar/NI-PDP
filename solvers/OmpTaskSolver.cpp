@@ -110,7 +110,6 @@ void OmpTaskSolver::solveDFS(Board board, int start_idx, int piece_id, int depth
  * @param board - predava se referenci protoze tady uz se bezi sekvencne, nemusi se resit preisovani
  */
 void OmpTaskSolver::solveDFSSeq(Board &board, int start_idx, int piece_id) {
-    // I sekvenční kód si musí občas zkontrolovat hlavní paměť
     #pragma omp flush(best_cost)
 
     if (best_cost == board.getTrivialUpperBound()) return;
